@@ -13,7 +13,7 @@ BinPackParameters: false
 BreakBeforeBraces: Stroustrup
 DerivePointerAlignment: false
 PointerAlignment: Left
-SortIncludes: true
+SortIncludes: false
 SpaceAfterCStyleCast: true
 SpaceBeforeParens: ControlStatements
 SpaceInEmptyParentheses: false

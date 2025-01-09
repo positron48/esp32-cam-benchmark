@@ -202,6 +202,9 @@ ESP32-CAM_BENCHMARK/
 
 ### Code Style
 - C++: Google Style (через clang-format)
+  - Сохраняется оригинальный порядок #include директив
+  - Используются отступы в 4 пробела
+  - Максимальная длина строки 100 символов
 - Python: PEP 8 (через black и autopep8)
 - Линтеры: cppcheck, cpplint, pylint
 
