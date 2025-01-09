@@ -26,7 +26,7 @@
 
 ### Системные зависимости
 - Python 3.9+
-- clang-format
+- python3-venv
 - Компилятор C++
 - PlatformIO Core
 
@@ -35,7 +35,7 @@
 - USB-TTL конвертер для прошивки
 - Стабильное WiFi подключение
 
-## Установка
+## Быстрый старт
 
 1. Клонируйте репозиторий:
 ```bash
@@ -48,47 +48,75 @@ cd ESP32-CAM_BENCHMARK
 make install-system-deps
 ```
 
-3. Создайте виртуальное окружение и установите Python зависимости:
+3. Создайте виртуальное окружение и установите зависимости:
 ```bash
 make venv
 ```
 
-## Конфигурация
-
-1. Настройте WiFi в `bench_config.yml`:
+4. Настройте WiFi в `bench_config.yml`:
 ```yaml
 wifi:
   ssid: "your_wifi_ssid"
   password: "your_wifi_password"
 ```
 
-2. При необходимости измените параметры тестов в том же файле:
-```yaml
-test_combinations:
-  - name: "video_only"
-    tests:
-      - video_protocol: all
-        resolutions: [QVGA, VGA]  # Выберите нужные разрешения
+5. Соберите и прошейте:
+```bash
+make build
+make flash
 ```
 
-## Использование
+## Разработка
 
-### Разработка
+### Проверка кода
 
-1. Активируйте виртуальное окружение:
+1. Запустите все проверки:
+```bash
+make check
+```
+Это выполнит:
+- Статический анализ C++ (cppcheck)
+- Проверку стиля C++ (cpplint)
+- Линтинг Python (pylint)
+- Проверку форматирования Python (black)
+- Запуск тестов (pytest)
+
+2. Автоматическое исправление проблем:
+```bash
+make fix
+```
+Это исправит:
+- Форматирование C++ (clang-format)
+- Форматирование Python (black)
+- Стиль кода Python (autopep8)
+
+3. Отдельные проверки:
+```bash
+make lint      # только статический анализ
+make format    # только форматирование
+make test      # только тесты
+```
+
+### Рабочий процесс
+
+1. Активируйте окружение разработки:
 ```bash
 make shell
 ```
 
-2. Запустите проверки кода:
+2. Внесите изменения в код
+
+3. Проверьте изменения:
 ```bash
 make check
 ```
 
-3. Отформатируйте код:
+4. Если есть проблемы, исправьте автоматически:
 ```bash
-make format
+make fix
 ```
+
+5. Проверьте и протестируйте исправления
 
 ### Сборка и прошивка
 
@@ -135,14 +163,22 @@ ESP32-CAM_BENCHMARK/
 
 ## Команды Make
 
-- `make venv` - создание виртуального окружения
+### Основные команды
+- `make all` - проверка и сборка
 - `make build` - сборка прошивки
 - `make flash` - прошивка ESP32-CAM
 - `make test` - запуск тестов
-- `make check` - проверка кода
+
+### Проверка кода
+- `make check` - все проверки
+- `make fix` - автоисправление проблем
+- `make lint` - статический анализ
 - `make format` - форматирование кода
-- `make clean` - очистка временных файлов
+
+### Разработка
+- `make venv` - создание виртуального окружения
 - `make shell` - запуск shell с активированным окружением
+- `make clean` - очистка временных файлов
 
 ## CI/CD
 
@@ -166,7 +202,7 @@ ESP32-CAM_BENCHMARK/
 
 ### Code Style
 - C++: Google Style (через clang-format)
-- Python: PEP 8 (через black)
+- Python: PEP 8 (через black и autopep8)
 - Линтеры: cppcheck, cpplint, pylint
 
 ### Тестирование
@@ -182,6 +218,7 @@ MIT License
 
 1. Форкните репозиторий
 2. Создайте ветку для фичи (`git checkout -b feature/amazing-feature`)
-3. Закоммитьте изменения (`git commit -m 'Add amazing feature'`)
-4. Пусните ветку (`git push origin feature/amazing-feature`)
-5. Откройте Pull Request 
+3. Внесите изменения и проверьте их (`make check` и `make fix`)
+4. Закоммитьте изменения (`git commit -m 'Add amazing feature'`)
+5. Пусните ветку (`git push origin feature/amazing-feature`)
+6. Откройте Pull Request 

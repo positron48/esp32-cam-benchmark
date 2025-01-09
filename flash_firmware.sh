@@ -5,13 +5,14 @@ PORT="/dev/ttyUSB0"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
-    case $1 in
-        --port)
-            PORT="$2"
-            shift 2
+    key="$1"
+    case $key in
+        --port=*)
+            PORT="${key#*=}"
+            shift
             ;;
         *)
-            echo "Unknown parameter: $1"
+            echo "Unknown parameter: $key"
             exit 1
             ;;
     esac
@@ -25,18 +26,12 @@ fi
 
 # Flash the firmware
 echo "Flashing firmware to $PORT..."
-pio run -t upload --upload-port $PORT
+.venv/bin/pio run -t upload --upload-port $PORT
 
 exit_code=$?
 
 if [ $exit_code -eq 0 ]; then
     echo "Flash successful!"
-    # Wait for device to reset
-    sleep 2
-    # Start serial monitor
-    if [ "$MONITOR" = "true" ]; then
-        pio device monitor --port $PORT
-    fi
     exit 0
 else
     echo "Flash failed!"

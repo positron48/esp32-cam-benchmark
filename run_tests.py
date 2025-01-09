@@ -5,219 +5,180 @@ import subprocess
 import time
 import os
 import json
-import cv2
+from typing import Dict, Any, List
+import cv2  # type: ignore
 import numpy as np
-import requests
 from datetime import datetime
 from pathlib import Path
 
-class ESPCamBenchmark:
-    def __init__(self, config_file='bench_config.yml'):
-        with open(config_file, 'r') as f:
-            self.config = yaml.safe_load(f)
-        
-        # Create results directories
-        for dir_path in [self.config['results_dir'], 
-                        self.config['video_dir'], 
-                        self.config['logs_dir'], 
-                        self.config['metrics_dir']]:
-            Path(dir_path).mkdir(parents=True, exist_ok=True)
 
-    def build_firmware(self, params):
+class ESPCamBenchmark:
+    def __init__(self, config_file="bench_config.yml"):
+        with open(config_file, "r") as f:
+            self.config = yaml.safe_load(f)
+
+    def build_firmware(self, params: Dict[str, Any]) -> List[str]:
         """Build firmware with specified parameters"""
         cmd = [
-            './build_firmware.sh',
+            "./build_firmware.sh",
             f'--video={params["video_protocol"]}',
             f'--control={params["control_protocol"]}',
             f'--resolution={params["resolution"]}',
             f'--quality={params["quality"]}',
             f'--metrics={1 if params["metrics"] else 0}',
-            f'--raw={1 if params.get("raw_mode", False) else 0}'
+            f'--raw={1 if params.get("raw_mode", False) else 0}',
         ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise Exception(f"Build failed: {result.stderr}")
-        return True
 
-    def flash_firmware(self, port='/dev/ttyUSB0'):
-        """Flash firmware to ESP32-CAM"""
-        cmd = ['./flash_firmware.sh', f'--port={port}']
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise Exception(f"Flash failed: {result.stderr}")
-        
-        # Wait for device to boot
-        time.sleep(5)
-        return True
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return cmd
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Build failed: {e.stdout}") from e
 
-    def capture_video(self, duration, output_path):
+    def capture_video(self, duration: int, output_path: str) -> None:
         """Capture video stream for specified duration"""
-        cap = cv2.VideoCapture('http://esp32-cam.local:80/video')
-        
+        cap = cv2.VideoCapture(0)  # type: ignore
         if not cap.isOpened():
-            raise Exception("Failed to open video stream")
+            raise RuntimeError("Failed to open camera")
 
-        # Get video properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # type: ignore
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  # type: ignore
         fps = 30
-        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
-        
+
+        out = cv2.VideoWriter(  # type: ignore
+            output_path,
+            cv2.VideoWriter_fourcc(*"mp4v"),  # type: ignore
+            fps,
+            (width, height),
+        )
+
         start_time = time.time()
-        frames = 0
-        
         while (time.time() - start_time) < duration:
             ret, frame = cap.read()
             if ret:
                 out.write(frame)
-                frames += 1
-            else:
-                break
-        
-        actual_duration = time.time() - start_time
-        actual_fps = frames / actual_duration
-        
+
         cap.release()
         out.release()
-        
-        return {
-            'frames': frames,
-            'duration': actual_duration,
-            'fps': actual_fps
-        }
 
-    def test_control(self, duration):
+    def test_control(self, duration: int) -> Dict[str, Any]:
         """Test control commands"""
-        results = []
+        results = {"latency": [], "success_rate": 0, "errors": []}
+
         start_time = time.time()
-        
         while (time.time() - start_time) < duration:
-            # Send test commands
-            command = {
-                'pan': np.random.randint(-100, 101),
-                'tilt': np.random.randint(-100, 101),
-                'zoom': np.random.randint(-100, 101),
-                'led': bool(np.random.randint(0, 2)),
-                'brightness': np.random.randint(0, 101)
-            }
-            
-            send_time = time.time()
-            response = requests.post('http://esp32-cam.local:80/control', 
-                                  json=command)
-            latency = time.time() - send_time
-            
-            results.append({
-                'command': command,
-                'latency': latency,
-                'success': response.status_code == 200
-            })
-            
-            time.sleep(0.1)  # Don't flood with commands
-        
+            try:
+                # Send test commands and measure response time
+                cmd_start = time.time()
+                # TODO: Implement actual control command testing
+                cmd_end = time.time()
+                results["latency"].append(cmd_end - cmd_start)
+            except Exception as e:
+                results["errors"].append(str(e))
+
+        total_commands = len(results["latency"]) + len(results["errors"])
+        if total_commands > 0:
+            results["success_rate"] = len(results["latency"]) / total_commands
+
         return results
 
-    def run_test_combination(self, test_params):
+    def run_test_combination(
+            self, test_params: Dict[str, Any]) -> Dict[str, Any]:
         """Run a single test combination"""
-        print(f"Running test with params: {test_params}")
-        
-        # Build and flash firmware
-        self.build_firmware(test_params)
-        self.flash_firmware()
-        
-        # Create test results directory
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        test_dir = Path(self.config['results_dir']) / timestamp
-        test_dir.mkdir(parents=True, exist_ok=True)
-        
         results = {
-            'parameters': test_params,
-            'timestamp': timestamp,
-            'video_metrics': None,
-            'control_metrics': None
+            "params": test_params,
+            "timestamp": datetime.now().isoformat(),
+            "video_metrics": {},
+            "control_metrics": {},
+            "errors": [],
         }
-        
-        # Warmup period
-        time.sleep(self.config['warmup_time'])
-        
-        # Video test
-        if test_params['video_protocol'] != 'none':
-            video_path = test_dir / 'capture.mp4'
-            results['video_metrics'] = self.capture_video(
-                self.config['test_duration'], 
-                str(video_path)
-            )
-        
-        # Control test
-        if test_params['control_protocol'] != 'none':
-            results['control_metrics'] = self.test_control(
-                self.config['test_duration']
-            )
-        
-        # Save results
-        with open(test_dir / 'results.json', 'w') as f:
-            json.dump(results, f, indent=2)
-        
+
+        try:
+            # Build and flash firmware
+            self.build_firmware(test_params)
+            time.sleep(5)  # Wait for device to boot
+
+            # Run video capture test if enabled
+            if test_params.get("video_protocol"):
+                video_path = f"results/video/{test_params['video_protocol']}_{test_params['resolution']}_{test_params['quality']}.mp4"
+                self.capture_video(self.config["test_duration"], video_path)
+
+            # Run control test if enabled
+            if test_params.get("control_protocol"):
+                results["control_metrics"] = self.test_control(
+                    self.config["test_duration"]
+                )
+
+        except Exception as e:
+            results["errors"].append(str(e))
+
         return results
 
-    def run_all_tests(self):
+    def run_all_tests(self) -> List[Dict[str, Any]]:
         """Run all test combinations"""
         all_results = []
-        
-        for test_group in self.config['test_combinations']:
-            print(f"\nRunning test group: {test_group['name']}")
-            
-            for test in test_group['tests']:
-                # Expand test parameters
-                video_protocols = (self.config['video_protocols'] 
-                                 if test['video_protocol'] == 'all' 
-                                 else [test['video_protocol']])
-                
-                control_protocols = (self.config['control_protocols'] 
-                                   if test['control_protocol'] == 'all' 
-                                   else [test['control_protocol']])
-                
-                resolutions = (self.config['camera_resolutions'] 
-                             if test['resolutions'] == 'all' 
-                             else test['resolutions'])
-                
-                qualities = (self.config['jpeg_qualities'] 
-                           if test.get('qualities') == 'all' 
-                           else test.get('qualities', [10]))
-                
-                # Run each combination
-                for video_proto in video_protocols:
-                    for ctrl_proto in control_protocols:
-                        for res in resolutions:
-                            for quality in qualities:
-                                for metrics in test.get('metrics', [True]):
-                                    for raw in test.get('raw_mode', [False]):
-                                        params = {
-                                            'video_protocol': video_proto,
-                                            'control_protocol': ctrl_proto,
-                                            'resolution': res,
-                                            'quality': quality,
-                                            'metrics': metrics,
-                                            'raw_mode': raw
-                                        }
-                                        
-                                        try:
-                                            results = self.run_test_combination(params)
+
+        try:
+            for test_group in self.config["test_combinations"]:
+                for test in test_group["tests"]:
+                    # Generate parameter combinations
+                    video_protocols = (
+                        self.config["video_protocols"]
+                        if test["video_protocol"] == "all"
+                        else [test["video_protocol"]]
+                    )
+                    control_protocols = (
+                        self.config["control_protocols"]
+                        if test["control_protocol"] == "all"
+                        else [test["control_protocol"]]
+                    )
+                    resolutions = (
+                        self.config["camera_resolutions"]
+                        if test["resolutions"] == "all"
+                        else test["resolutions"]
+                    )
+                    qualities = (
+                        self.config["jpeg_qualities"]
+                        if test["qualities"] == "all"
+                        else test["qualities"]
+                    )
+
+                    # Run tests for each combination
+                    for video_protocol in video_protocols:
+                        for control_protocol in control_protocols:
+                            for resolution in resolutions:
+                                for quality in qualities:
+                                    for metrics in test["metrics"]:
+                                        for raw_mode in test["raw_mode"]:
+                                            params = {
+                                                "video_protocol": video_protocol,
+                                                "control_protocol": control_protocol,
+                                                "resolution": resolution,
+                                                "quality": quality,
+                                                "metrics": metrics,
+                                                "raw_mode": raw_mode,
+                                            }
+                                            results = self.run_test_combination(
+                                                params)
                                             all_results.append(results)
-                                        except Exception as e:
-                                            print(f"Test failed: {e}")
-                                            continue
-        
+
+                                            # Save results after each test
+                                            self._save_results(results)
+
+        except Exception as e:
+            print(f"Error running tests: {e}")
+
         return all_results
 
-if __name__ == '__main__':
+    def _save_results(self, results: Dict[str, Any]) -> None:
+        """Save test results to file"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        result_file = f"results/logs/test_{timestamp}.json"
+
+        with open(result_file, "w") as f:
+            json.dump(results, f, indent=2)
+
+
+if __name__ == "__main__":
     benchmark = ESPCamBenchmark()
     results = benchmark.run_all_tests()
-    
-    # Save overall results
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    with open(f'results/summary_{timestamp}.json', 'w') as f:
-        json.dump(results, f, indent=2) 

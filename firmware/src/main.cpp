@@ -1,132 +1,74 @@
 #include <Arduino.h>
-#include "esp_camera.h"
-#include "esp_wifi.h"
 #include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include "esp_camera.h"
+
 #include "config.h"
 #include "camera.h"
-
-// Protocol includes based on configuration
-#if VIDEO_PROTOCOL == HTTP
 #include "video_http.h"
-#elif VIDEO_PROTOCOL == RTSP
-#include "video_rtsp.h"
-#elif VIDEO_PROTOCOL == UDP
-#include "video_udp.h"
-#elif VIDEO_PROTOCOL == WebRTC
-#include "video_webrtc.h"
-#endif
-
-#if CONTROL_PROTOCOL == HTTP
 #include "ctrl_http.h"
-#elif CONTROL_PROTOCOL == UDP
-#include "ctrl_udp.h"
-#elif CONTROL_PROTOCOL == WebSocket
-#include "ctrl_websocket.h"
-#endif
 
-// Task handles
-TaskHandle_t videoTaskHandle = NULL;
-TaskHandle_t controlTaskHandle = NULL;
-
-// Video streaming task
-void videoTask(void *parameter) {
-    while (true) {
-        #if VIDEO_PROTOCOL == HTTP
-        handleVideoHTTP();
-        #elif VIDEO_PROTOCOL == RTSP
-        handleVideoRTSP();
-        #elif VIDEO_PROTOCOL == UDP
-        handleVideoUDP();
-        #elif VIDEO_PROTOCOL == WebRTC
-        handleVideoWebRTC();
-        #endif
-        vTaskDelay(1); // Small delay to prevent watchdog triggers
-    }
-}
-
-// Control task
-void controlTask(void *parameter) {
-    while (true) {
-        #if CONTROL_PROTOCOL == HTTP
-        handleControlHTTP();
-        #elif CONTROL_PROTOCOL == UDP
-        handleControlUDP();
-        #elif CONTROL_PROTOCOL == WebSocket
-        handleControlWebSocket();
-        #endif
-        vTaskDelay(1); // Small delay to prevent watchdog triggers
-    }
-}
+// Global web server instance
+AsyncWebServer server(80);
 
 void setup() {
-    #if ENABLE_METRICS
     Serial.begin(115200);
-    #endif
+    
+    // Initialize camera hardware
+    camera_config_t config;
+    config.ledc_channel = LEDC_CHANNEL_0;
+    config.ledc_timer = LEDC_TIMER_0;
+    config.pin_d0 = Y2_GPIO_NUM;
+    config.pin_d1 = Y3_GPIO_NUM;
+    config.pin_d2 = Y4_GPIO_NUM;
+    config.pin_d3 = Y5_GPIO_NUM;
+    config.pin_d4 = Y6_GPIO_NUM;
+    config.pin_d5 = Y7_GPIO_NUM;
+    config.pin_d6 = Y8_GPIO_NUM;
+    config.pin_d7 = Y9_GPIO_NUM;
+    config.pin_xclk = XCLK_GPIO_NUM;
+    config.pin_pclk = PCLK_GPIO_NUM;
+    config.pin_vsync = VSYNC_GPIO_NUM;
+    config.pin_href = HREF_GPIO_NUM;
+    config.pin_sscb_sda = SIOD_GPIO_NUM;
+    config.pin_sscb_scl = SIOC_GPIO_NUM;
+    config.pin_pwdn = PWDN_GPIO_NUM;
+    config.pin_reset = RESET_GPIO_NUM;
+    config.xclk_freq_hz = 20000000;
+    config.pixel_format = PIXFORMAT_JPEG;
+    config.frame_size = FRAMESIZE_VGA;
+    config.jpeg_quality = JPEG_QUALITY;
+    config.fb_count = 2;
 
-    // Initialize camera
-    if (!initCamera()) {
-        #if ENABLE_METRICS
-        Serial.println("Camera initialization failed");
-        #endif
+    // Initialize the camera
+    esp_err_t err = esp_camera_init(&config);
+    if (err != ESP_OK) {
+        Serial.printf("Camera init failed with error 0x%x", err);
         return;
     }
 
+    // Initialize camera control
+    camera_init();
+
     // Connect to WiFi
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        #if ENABLE_METRICS
         Serial.print(".");
-        #endif
     }
-    #if ENABLE_METRICS
-    Serial.println("\nWiFi connected");
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.localIP());
-    #endif
+    Serial.println("");
+    Serial.println("WiFi connected");
 
-    // Initialize protocols
-    #if VIDEO_PROTOCOL == HTTP
+    // Initialize HTTP server
     initVideoHTTP();
-    #elif VIDEO_PROTOCOL == RTSP
-    initVideoRTSP();
-    #elif VIDEO_PROTOCOL == UDP
-    initVideoUDP();
-    #elif VIDEO_PROTOCOL == WebRTC
-    initVideoWebRTC();
-    #endif
-
-    #if CONTROL_PROTOCOL == HTTP
     initControlHTTP();
-    #elif CONTROL_PROTOCOL == UDP
-    initControlUDP();
-    #elif CONTROL_PROTOCOL == WebSocket
-    initControlWebSocket();
-    #endif
+    server.begin();
 
-    // Create tasks on different cores
-    xTaskCreatePinnedToCore(
-        videoTask,
-        "VideoTask",
-        8192,
-        NULL,
-        1,
-        &videoTaskHandle,
-        0  // Core 0
-    );
-
-    xTaskCreatePinnedToCore(
-        controlTask,
-        "ControlTask",
-        4096,
-        NULL,
-        1,
-        &controlTaskHandle,
-        1  // Core 1
-    );
+    Serial.print("Camera Ready! Use 'http://");
+    Serial.print(WiFi.localIP());
+    Serial.println("' to connect");
 }
 
 void loop() {
-    // Main loop is empty as tasks handle everything
-    vTaskDelay(1000);
-} 
+    handleVideoHTTP();
+}
