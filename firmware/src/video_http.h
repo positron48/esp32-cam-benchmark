@@ -13,7 +13,10 @@ extern AsyncWebServer server;
 void initVideoHTTP()
 {
     server.on("/stream", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->send(200, "text/html", "<html><body><img src='/video' style='width:100%;height:auto;'/></body></html>");
+        request->send(
+            200,
+            "text/html",
+            "<html><body><img src='/video' style='width:100%;height:auto;'/></body></html>");
     });
 
     server.on("/video", HTTP_GET, [](AsyncWebServerRequest* request) {
