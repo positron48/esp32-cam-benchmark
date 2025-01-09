@@ -1,0 +1,65 @@
+wifi:
+  ssid: "your_wifi_ssid"
+  password: "your_wifi_password"
+
+camera_resolutions:
+  - QQVGA    # 160x120
+  - QVGA     # 320x240
+  - VGA      # 640x480
+  - SVGA     # 800x600
+  - XGA      # 1024x768
+  - SXGA     # 1280x1024
+  - UXGA     # 1600x1200
+
+jpeg_qualities: [10, 20, 30, 40, 50, 60]
+
+video_protocols:
+  - HTTP
+  - RTSP
+  - UDP
+  - WebRTC
+
+control_protocols:
+  - HTTP
+  - UDP
+  - WebSocket
+
+test_combinations:
+  # Video only tests
+  - name: "video_only"
+    tests:
+      - video_protocol: all
+        control_protocol: none
+        resolutions: all
+        qualities: all
+        metrics: [true, false]
+        raw_mode: [true, false]
+
+  # Control only tests
+  - name: "control_only"
+    tests:
+      - video_protocol: none
+        control_protocol: all
+        resolutions: [QVGA]  # Minimal resolution for control tests
+        qualities: [30]      # Medium quality for control tests
+        metrics: [true, false]
+        raw_mode: [false]
+
+  # Combined video and control tests
+  - name: "combined"
+    tests:
+      - video_protocol: all
+        control_protocol: all
+        resolutions: [QVGA, VGA, SVGA]  # Most common resolutions
+        qualities: [20, 40, 60]         # Low, medium, high quality
+        metrics: [true, false]
+        raw_mode: [false]
+
+test_duration: 60  # seconds per test
+warmup_time: 5     # seconds before starting measurements
+
+# Paths for results
+results_dir: "results"
+video_dir: "results/video"
+logs_dir: "results/logs"
+metrics_dir: "results/metrics" 
