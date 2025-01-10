@@ -22,6 +22,9 @@
 #define HREF_GPIO_NUM  23
 #define PCLK_GPIO_NUM  22
 
+// Camera configuration
+#define JPEG_QUALITY 12  // 0-63, lower means higher quality
+
 // Frame interval in milliseconds (1000/FPS)
 #define FRAME_INTERVAL_MS 100  // 10 FPS
 

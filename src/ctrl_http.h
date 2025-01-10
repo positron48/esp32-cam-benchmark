@@ -5,6 +5,8 @@
 
 #include "camera.h"
 
+extern AsyncWebServer server;
+
 void initControlHTTP() {
     server.on(
         "/control",
