@@ -46,24 +46,17 @@ lint: venv
 format: venv
 	@echo "Checking clang-format version..."
 	@clang-format-14 --version
-	@echo "Checking clang-format config..."
-	@echo "Contents of .clang-format:"
-	@cat .clang-format
-	@echo "Dumped clang-format config:"
-	@clang-format-14 --dump-config --style=file:.clang-format
 	@echo "Formatting C++ code..."
-	@echo "Files to be formatted:"
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" -type f -ls
-	@echo "Running clang-format..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 -i --verbose --style=file:.clang-format
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 -i --style=file:.clang-format
 	@echo "Checking if C++ code is properly formatted..."
 	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 --dry-run --Werror --style=file:.clang-format || \
-		(echo "C++ code is not properly formatted. Please run 'make format' locally and commit the changes." && exit 1)
-	@echo "Git status after formatting:"
-	@git status -vv
-	@echo "Git diff after formatting (excluding includes):"
-	@git diff --stat '*.h' '*.cpp' || true
-	@git diff '*.h' '*.cpp' | grep -v '^[+-]#include' || true
+		(echo "C++ code is not properly formatted. Details:" && \
+		for file in $$(find firmware/src -iname "*.h" -o -iname "*.cpp"); do \
+			if ! clang-format-14 --dry-run --Werror --style=file:.clang-format "$$file" 2>/dev/null; then \
+				echo "\nFormatting issues in $$file:"; \
+				clang-format-14 --style=file:.clang-format "$$file" | diff -u "$$file" -; \
+			fi \
+		done && exit 1)
 	@echo "Formatting Python code..."
 	@$(VENV)/bin/black run_tests.py tests/
 
