@@ -44,13 +44,19 @@ lint: venv
 
 # Format code without checking
 format: venv
+	@echo "Formatting C++ code..."
 	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format -i -style=file
+	@echo "Checking if C++ code is properly formatted..."
+	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format --dry-run --Werror -style=file
+	@echo "Formatting Python code..."
 	$(VENV)/bin/black run_tests.py tests/
 
 # Run all checks without fixing
 check: venv
 	@echo "Running all checks..."
 	@echo "1. Running C++ checks..."
+	@echo "Checking C++ formatting..."
+	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format --dry-run --Werror -style=file
 	-$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
 		firmware/src/
