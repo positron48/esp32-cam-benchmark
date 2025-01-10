@@ -17,8 +17,7 @@ static WebRTCState webrtcState   = DISCONNECTED;
 static uint8_t     currentClient = 0;
 
 // SDP and ICE candidate handling
-void handleWebRTCMessage(uint8_t num, uint8_t* payload, size_t length)
-{
+void handleWebRTCMessage(uint8_t num, uint8_t* payload, size_t length) {
     String message = String(reinterpret_cast<const char*>(payload));
 
 #if ENABLE_METRICS
@@ -72,8 +71,7 @@ void handleWebRTCMessage(uint8_t num, uint8_t* payload, size_t length)
 
                 webrtcState   = SIGNALING;
                 currentClient = num;
-            }
-            else if (type == "ice-candidate") {
+            } else if (type == "ice-candidate") {
                 // Handle ICE candidate
                 if (doc.containsKey("candidate")) {
                     String candidate = doc["candidate"];
@@ -93,8 +91,7 @@ void handleWebRTCMessage(uint8_t num, uint8_t* payload, size_t length)
 }
 
 // WebSocket event handler for WebRTC signaling
-void webRTCEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
-{
+void webRTCEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
     switch (type) {
         case WStype_DISCONNECTED: {
             if (num == currentClient) {
@@ -122,8 +119,7 @@ void webRTCEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 }
 
 // Initialize WebRTC video streaming
-void initVideoWebRTC()
-{
+void initVideoWebRTC() {
     webRTC.begin();
     webRTC.onEvent(webRTCEvent);
 
@@ -138,8 +134,7 @@ void initVideoWebRTC()
 // 2. Handle ICE for NAT traversal
 // 3. Implement proper DTLS-SRTP for security
 // 4. Handle codec negotiation and packetization
-void sendWebRTCFrame(camera_fb_t* fb)
-{
+void sendWebRTCFrame(camera_fb_t* fb) {
     if (webrtcState != CONNECTED || !fb)
         return;
 
@@ -156,8 +151,7 @@ void sendWebRTCFrame(camera_fb_t* fb)
 }
 
 // Handle WebRTC video streaming
-void handleVideoWebRTC()
-{
+void handleVideoWebRTC() {
     webRTC.loop();
 
     if (webrtcState != DISCONNECTED) {

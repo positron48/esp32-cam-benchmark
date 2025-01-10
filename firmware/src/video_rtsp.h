@@ -26,16 +26,14 @@ class RTSPServer {
         uint32_t ssrc;            // Synchronization source identifier
     };
 
-    void sendRTSPResponse(const char* response)
-    {
+    void sendRTSPResponse(const char* response) {
         client.print(response);
 #if ENABLE_METRICS
         Serial.println(response);
 #endif
     }
 
-    void handleOptions()
-    {
+    void handleOptions() {
         char response[256];
         snprintf(response,
                  sizeof(response),
@@ -47,8 +45,7 @@ class RTSPServer {
         sendRTSPResponse(response);
     }
 
-    void handleDescribe()
-    {
+    void handleDescribe() {
         char sdp[512];
         snprintf(sdp,
                  sizeof(sdp),
@@ -78,8 +75,7 @@ class RTSPServer {
         sendRTSPResponse(response);
     }
 
-    void handleSetup()
-    {
+    void handleSetup() {
         char response[256];
         snprintf(response,
                  sizeof(response),
@@ -93,8 +89,7 @@ class RTSPServer {
         sendRTSPResponse(response);
     }
 
-    void handlePlay()
-    {
+    void handlePlay() {
         char response[256];
         snprintf(response,
                  sizeof(response),
@@ -108,8 +103,7 @@ class RTSPServer {
         sendRTSPResponse(response);
     }
 
-    void handleTeardown()
-    {
+    void handleTeardown() {
         char response[256];
         snprintf(response,
                  sizeof(response),
@@ -124,8 +118,7 @@ class RTSPServer {
         clientConnected = false;
     }
 
-    void sendRTPPacket(const uint8_t* data, size_t len)
-    {
+    void sendRTPPacket(const uint8_t* data, size_t len) {
         RTPHeader header;
         header.version_p_x_cc = 0x80;  // Version 2, no padding, no extension, no CSRC
         header.marker_payload = 0x1A;  // JPEG payload type
@@ -145,20 +138,16 @@ class RTSPServer {
           clientConnected(false),
           sessionId(random(1000000)),
           sequenceNumber(0),
-          timestamp(0)
-    {
-    }
+          timestamp(0) {}
 
-    void begin()
-    {
+    void begin() {
         server.begin();
 #if ENABLE_METRICS
         Serial.printf("RTSP server started on port %d\n", RTSP_PORT);
 #endif
     }
 
-    void handle()
-    {
+    void handle() {
         if (!clientConnected) {
             client = server.available();
             if (client) {
@@ -198,8 +187,7 @@ class RTSPServer {
         }
     }
 
-    void sendFrame(camera_fb_t* fb)
-    {
+    void sendFrame(camera_fb_t* fb) {
         if (clientConnected) {
             const size_t   maxPacketSize = 1400;  // Keep below typical MTU
             size_t         remaining     = fb->len;
@@ -217,8 +205,7 @@ class RTSPServer {
         }
     }
 
-    bool isClientConnected()
-    {
+    bool isClientConnected() {
         return clientConnected;
     }
 };
@@ -227,14 +214,12 @@ class RTSPServer {
 static RTSPServer rtspServer;
 
 // Initialize RTSP video streaming
-void initVideoRTSP()
-{
+void initVideoRTSP() {
     rtspServer.begin();
 }
 
 // Handle RTSP video streaming
-void handleVideoRTSP()
-{
+void handleVideoRTSP() {
     rtspServer.handle();
 
     if (rtspServer.isClientConnected()) {

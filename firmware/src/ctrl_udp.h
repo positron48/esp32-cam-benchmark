@@ -25,14 +25,12 @@ static ControlCommand currentControl = {0, 0, 0, false, 50};
 char packetBuffer[CONTROL_BUFFER_SIZE];
 
 // Initialize UDP control server
-void initControlUDP()
-{
+void initControlUDP() {
     controlUDP.begin(UDP_CONTROL_PORT);
 }
 
 // Process incoming UDP control packet
-void processControlPacket(char* data, size_t len)
-{
+void processControlPacket(char* data, size_t len) {
 #if ENABLE_METRICS
     START_METRIC(control_process);
 #endif
@@ -80,8 +78,7 @@ void processControlPacket(char* data, size_t len)
 }
 
 // Handle UDP control commands
-void handleControlUDP()
-{
+void handleControlUDP() {
     // Check for incoming packets
     int packetSize = controlUDP.parsePacket();
     if (packetSize) {
@@ -109,8 +106,7 @@ void handleControlUDP()
 #ifdef LED_BUILTIN
     if (currentControl.led) {
         digitalWrite(LED_BUILTIN, HIGH);
-    }
-    else {
+    } else {
         digitalWrite(LED_BUILTIN, LOW);
     }
 #endif

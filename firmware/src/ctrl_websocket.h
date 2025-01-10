@@ -21,8 +21,7 @@ struct ControlCommand {
 static ControlCommand currentControl = {0, 0, 0, false, 50};
 
 // WebSocket event handler
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
-{
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
     switch (type) {
         case WStype_DISCONNECTED:
 #if ENABLE_METRICS
@@ -96,8 +95,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 }
 
 // Initialize WebSocket control server
-void initControlWebSocket()
-{
+void initControlWebSocket() {
     webSocket.begin();
     webSocket.onEvent(webSocketEvent);
 
@@ -107,8 +105,7 @@ void initControlWebSocket()
 }
 
 // Handle WebSocket control updates
-void handleControlWebSocket()
-{
+void handleControlWebSocket() {
     // Handle WebSocket events
     webSocket.loop();
 
@@ -121,8 +118,7 @@ void handleControlWebSocket()
 #ifdef LED_BUILTIN
     if (currentControl.led) {
         digitalWrite(LED_BUILTIN, HIGH);
-    }
-    else {
+    } else {
         digitalWrite(LED_BUILTIN, LOW);
     }
 #endif

@@ -25,14 +25,12 @@ struct UDPVideoHeader {
 };
 
 // Initialize UDP video streaming
-void initVideoUDP()
-{
+void initVideoUDP() {
     videoUDP.begin(UDP_VIDEO_PORT);
 }
 
 // Send frame data in UDP packets
-void sendFrameUDP(camera_fb_t* fb)
-{
+void sendFrameUDP(camera_fb_t* fb) {
 #if ENABLE_METRICS
     START_METRIC(frame_send);
 #endif
@@ -74,8 +72,7 @@ void sendFrameUDP(camera_fb_t* fb)
 }
 
 // Handle UDP video streaming
-void handleVideoUDP()
-{
+void handleVideoUDP() {
 #if ENABLE_METRICS
     START_METRIC(frame_capture);
 #endif

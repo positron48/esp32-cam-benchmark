@@ -5,8 +5,7 @@
 
 #include "camera.h"
 
-void initControlHTTP()
-{
+void initControlHTTP() {
     server.on(
         "/control",
         HTTP_POST,

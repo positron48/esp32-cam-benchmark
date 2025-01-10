@@ -1,18 +1,17 @@
 #include <Arduino.h>
-#include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-#include "esp_camera.h"
+#include <WiFi.h>
 
-#include "config.h"
 #include "camera.h"
-#include "video_http.h"
+#include "config.h"
 #include "ctrl_http.h"
+#include "esp_camera.h"
+#include "video_http.h"
 
 // Global web server instance
 AsyncWebServer server(80);
 
-void setup()
-{
+void setup() {
     Serial.begin(115200);
 
     // Initialize camera hardware
@@ -70,7 +69,6 @@ void setup()
     Serial.println("' to connect");
 }
 
-void loop()
-{
+void loop() {
     handleVideoHTTP();
 }

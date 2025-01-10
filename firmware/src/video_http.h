@@ -10,8 +10,7 @@
 extern AsyncWebServer server;
 
 // Initialize HTTP video streaming
-void initVideoHTTP()
-{
+void initVideoHTTP() {
     server.on("/stream", HTTP_GET, [](AsyncWebServerRequest* request) {
         request->send(
             200,
@@ -25,8 +24,7 @@ void initVideoHTTP()
 }
 
 // Handle HTTP video streaming
-void handleVideoHTTP()
-{
+void handleVideoHTTP() {
 #if ENABLE_METRICS
     START_METRIC(frame_capture);
 #endif
