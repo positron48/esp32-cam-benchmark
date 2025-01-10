@@ -13,7 +13,8 @@ $(VENV)/bin/activate:
 	python3 -m venv $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
-	$(PIP) install cppcheck cpplint pytest pytest-cov black pylint platformio autopep8 clang-format
+	$(PIP) install cppcheck cpplint pytest pytest-cov black pylint platformio autopep8 clang-format isort autoflake pyupgrade ruff
+	mkdir -p results/video results/logs results/metrics
 
 venv: $(VENV)/bin/activate
 
@@ -25,7 +26,6 @@ build: venv
 clean:
 	$(VENV)/bin/pio run -t clean
 	rm -rf .pio
-	rm -rf results/*
 	rm -rf $(VENV)
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
@@ -63,9 +63,21 @@ check: venv
 # Attempt to fix all issues automatically
 fix: venv
 	@echo "Attempting to fix code issues..."
-	@echo "1. Fixing C++ formatting..."
+	@echo "1. Fixing C++ formatting and issues..."
 	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format -i -style=file
-	@echo "2. Fixing Python formatting..."
+	-$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
+		--template="{file}:{line}: {severity}: {message}" \
+		firmware/src/ 2>cppcheck_errors.txt || true
+	@echo "2. Fixing Python code..."
+	# Sort imports
+	$(VENV)/bin/isort run_tests.py tests/
+	# Remove unused imports and variables
+	$(VENV)/bin/autoflake --in-place --remove-all-unused-imports --remove-unused-variables run_tests.py tests/*.py
+	# Upgrade Python syntax
+	$(VENV)/bin/pyupgrade --py38-plus run_tests.py tests/*.py
+	# Fix common Python issues
+	$(VENV)/bin/ruff --fix run_tests.py tests/
+	# Format code
 	$(VENV)/bin/black run_tests.py tests/
 	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive run_tests.py tests/*.py
 	@echo "3. Running checks after fixes..."
