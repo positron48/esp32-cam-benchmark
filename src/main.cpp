@@ -13,7 +13,21 @@ AsyncWebServer server(80);
 
 void setup() {
     Serial.begin(115200);
+    delay(1000);  // Wait for serial to stabilize
+    Serial.println("\n=== ESP32-CAM Initialization ===");
 
+// Convert defines to strings for better logging
+#define XSTR(x) STR(x)
+#define STR(x)  #x
+
+    Serial.printf("- Video Protocol: %s\n", XSTR(VIDEO_PROTOCOL));
+    Serial.printf("- Control Protocol: %s\n", XSTR(CONTROL_PROTOCOL));
+    Serial.printf("- Camera Resolution: %s\n", XSTR(CAMERA_RESOLUTION));
+    Serial.printf("- JPEG Quality: %d\n", JPEG_QUALITY);
+    Serial.printf("- Metrics Enabled: %d\n", ENABLE_METRICS);
+    Serial.printf("- Raw Mode: %d\n\n", RAW_MODE);
+
+    Serial.println("Initializing camera...");
     // Initialize camera hardware
     camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
@@ -40,35 +54,61 @@ void setup() {
     config.jpeg_quality = JPEG_QUALITY;
     config.fb_count     = 2;
 
+    Serial.println("Camera configuration:");
+    Serial.printf("- XCLK Frequency: %d Hz\n", config.xclk_freq_hz);
+    Serial.printf("- Frame Size: %d\n", config.frame_size);
+    Serial.printf("- JPEG Quality: %d\n", config.jpeg_quality);
+    Serial.printf("- FB Count: %d\n", config.fb_count);
+
     // Initialize the camera
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        Serial.printf("Camera init failed with error 0x%x", err);
+        Serial.printf("Camera initialization failed with error 0x%x\n", err);
         return;
     }
+    Serial.println("Camera initialized successfully!");
 
     // Initialize camera control
+    Serial.println("Initializing camera control...");
     camera_init();
+    Serial.println("Camera control initialized!");
 
     // Connect to WiFi
+    Serial.printf("\nConnecting to WiFi network: %s\n", WIFI_SSID);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
+    int attempts = 0;
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
+        attempts++;
+        if (attempts % 20 == 0) {
+            Serial.printf("\nStill trying to connect (attempt %d)...\n", attempts);
+        }
     }
-    Serial.println("");
-    Serial.println("WiFi connected");
+    Serial.println("\nWiFi connected!");
+    Serial.printf("- SSID: %s\n", WIFI_SSID);
+    Serial.printf("- IP address: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("- Signal strength: %d dBm\n", WiFi.RSSI());
 
     // Initialize HTTP server
+    Serial.println("\nInitializing HTTP server...");
     initVideoHTTP();
     initControlHTTP();
     server.begin();
+    Serial.println("HTTP server started!");
 
-    Serial.print("Camera Ready! Use 'http://");
-    Serial.print(WiFi.localIP());
-    Serial.println("' to connect");
+    Serial.println("\n=== Initialization Complete ===");
+    Serial.printf("Camera Ready! Use 'http://%s' to connect\n", WiFi.localIP().toString().c_str());
 }
 
 void loop() {
+    static unsigned long lastLog = 0;
     handleVideoHTTP();
+
+    // Log status every 10 seconds
+    if (millis() - lastLog > 10000) {
+        Serial.printf(
+            "Status: WiFi RSSI=%d dBm, Free heap=%d bytes\n", WiFi.RSSI(), ESP.getFreeHeap());
+        lastLog = millis();
+    }
 }

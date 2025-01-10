@@ -1,8 +1,13 @@
 #pragma once
 
-// WiFi credentials
-#define WIFI_SSID "your_ssid"
-#define WIFI_PASS "your_password"
+// WiFi credentials are defined via build flags
+#ifndef WIFI_SSID
+#define WIFI_SSID "your_ssid"     // Default value if not defined
+#endif
+
+#ifndef WIFI_PASS
+#define WIFI_PASS "your_password"  // Default value if not defined
+#endif
 
 // Camera pins for ESP32-CAM
 #define PWDN_GPIO_NUM  32
@@ -23,7 +28,9 @@
 #define PCLK_GPIO_NUM  22
 
 // Camera configuration
+#ifndef JPEG_QUALITY
 #define JPEG_QUALITY 12  // 0-63, lower means higher quality
+#endif
 
 // Frame interval in milliseconds (1000/FPS)
 #define FRAME_INTERVAL_MS 100  // 10 FPS
