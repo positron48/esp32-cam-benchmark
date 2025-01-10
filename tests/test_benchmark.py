@@ -41,7 +41,7 @@ def test_protocol_combinations(benchmark_instance):
         "metrics": True,
         "raw_mode": False,
     }
-    cmd = benchmark_instance.build_firmware(test_params)
+    cmd = benchmark_instance.build_firmware(test_params, dry_run=True)
     assert isinstance(cmd, list)
     assert all(isinstance(arg, str) for arg in cmd)
 
@@ -56,7 +56,7 @@ def test_build_parameters(benchmark_instance):
         "metrics": True,
         "raw_mode": False,
     }
-    cmd = benchmark_instance.build_firmware(params)
+    cmd = benchmark_instance.build_firmware(params, dry_run=True)
     assert isinstance(cmd, list)
     assert len(cmd) == 7
     assert cmd[0] == "./build_firmware.sh"

@@ -17,8 +17,16 @@ class ESPCamBenchmark:
         with open(config_file, "r") as f:
             self.config = yaml.safe_load(f)
 
-    def build_firmware(self, params: Dict[str, Any]) -> List[str]:
-        """Build firmware with specified parameters"""
+    def build_firmware(self, params: Dict[str, Any], dry_run: bool = False) -> List[str]:
+        """Build firmware with specified parameters
+        
+        Args:
+            params: Dictionary with build parameters
+            dry_run: If True, only return the command without executing it
+        
+        Returns:
+            List of command arguments
+        """
         cmd = [
             "./build_firmware.sh",
             f'--video={params["video_protocol"]}',
@@ -28,6 +36,9 @@ class ESPCamBenchmark:
             f'--metrics={1 if params["metrics"] else 0}',
             f'--raw={1 if params.get("raw_mode", False) else 0}',
         ]
+
+        if dry_run:
+            return cmd
 
         try:
             subprocess.run(cmd, capture_output=True, text=True, check=True)
