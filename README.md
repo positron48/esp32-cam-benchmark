@@ -1,5 +1,8 @@
 # ESP32-CAM Benchmark
 
+[![CI](https://github.com/intaros/esp32-cam-benchmark/actions/workflows/ci.yml/badge.svg)](https://github.com/intaros/esp32-cam-benchmark/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Автоматизированный бенчмарк для ESP32-CAM, тестирующий различные протоколы передачи видео и управления.
 
 ## Возможности

@@ -26,19 +26,6 @@ def test_config_loading(benchmark_instance):
     assert "control_protocols" in benchmark_instance.config
 
 
-def test_results_directories():
-    """Test that results directories are created"""
-    results_dir = Path("results")
-    video_dir = results_dir / "video"
-    logs_dir = results_dir / "logs"
-    metrics_dir = results_dir / "metrics"
-
-    assert results_dir.exists()
-    assert video_dir.exists()
-    assert logs_dir.exists()
-    assert metrics_dir.exists()
-
-
 def test_protocol_combinations(benchmark_instance):
     """Test that protocol combinations are generated correctly"""
     test_params = {

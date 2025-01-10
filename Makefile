@@ -68,7 +68,7 @@ check: venv
 	@echo "Running all checks..."
 	@echo "1. Running C++ checks..."
 	@echo "Checking C++ formatting..."
-	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format-14 --dry-run --Werror --style=file:.clang-format
+	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format --dry-run --Werror --style=file:.clang-format
 	-$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
 		firmware/src/
@@ -110,7 +110,6 @@ fix: venv
 
 # Run tests
 test: venv
-	mkdir -p results/video results/logs results/metrics
 	$(PYTHON) -m pytest tests/ -v
 
 # Flash firmware
