@@ -35,9 +35,9 @@ lint: venv
 	@echo "Running C++ checks..."
 	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
-		firmware/src/ 2>cppcheck_errors.txt || (cat cppcheck_errors.txt && exit 1)
+		src/ 2>cppcheck_errors.txt || (cat cppcheck_errors.txt && exit 1)
 	$(VENV)/bin/cpplint --filter=-legal/copyright,-build/include_subdir,-whitespace/newline,-readability/braces \
-		--recursive firmware/src/
+		--recursive src/
 	@echo "Running Python checks..."
 	$(VENV)/bin/ruff check run_tests.py tests/
 	$(VENV)/bin/pylint --fail-under=8.0 run_tests.py tests/
@@ -47,7 +47,7 @@ format: venv
 	@echo "Checking clang-format version..."
 	@clang-format --version
 	@echo "Checking C++ formatting..."
-	@for file in $$(find firmware/src -iname "*.h" -o -iname "*.cpp"); do \
+	@for file in $$(find src -iname "*.h" -o -iname "*.cpp"); do \
 		if ! clang-format --dry-run --Werror --style=file:.clang-format "$$file" 2>/dev/null; then \
 			echo "\nFormatting issues in $$file:"; \
 			echo "Expected format:"; \
@@ -68,12 +68,12 @@ check: venv
 	@echo "Running all checks..."
 	@echo "1. Running C++ checks..."
 	@echo "Checking C++ formatting..."
-	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format --dry-run --Werror --style=file:.clang-format
+	find src -iname "*.h" -o -iname "*.cpp" | xargs clang-format --dry-run --Werror --style=file:.clang-format
 	-$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
-		firmware/src/
+		src/
 	-$(VENV)/bin/cpplint --filter=-legal/copyright,-build/include_subdir \
-		--recursive firmware/src/
+		--recursive src/
 	@echo "2. Running Python checks..."
 	-$(VENV)/bin/pylint run_tests.py tests/
 	-$(VENV)/bin/black --check run_tests.py tests/
@@ -85,10 +85,10 @@ check: venv
 fix: venv
 	@echo "Attempting to fix code issues..."
 	@echo "1. Fixing C++ formatting and issues..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
+	@find src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
 	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
-		firmware/src/ 2>cppcheck_errors.txt
+		src/ 2>cppcheck_errors.txt
 	@echo "2. Fixing Python code..."
 	# Sort imports
 	$(VENV)/bin/isort run_tests.py tests/
@@ -103,7 +103,7 @@ fix: venv
 	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive run_tests.py tests/*.py
 	@echo "3. Running format..."
 	@echo "Formatting C++ code again to ensure consistency..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
+	@find src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
 	@echo "Formatting Python code again to ensure consistency..."
 	@$(VENV)/bin/black run_tests.py tests/
 	@echo "Fix completed. Please review changes and run tests."
