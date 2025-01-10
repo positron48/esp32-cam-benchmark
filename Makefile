@@ -56,7 +56,10 @@ format: venv
 				echo "\nFormatting issues in $$file:"; \
 				clang-format-14 --style=file:.clang-format "$$file" | diff -u "$$file" -; \
 			fi \
-		done && exit 1)
+		done && \
+		echo "\nGit detected changes (excluding includes):" && \
+		git diff '*.h' '*.cpp' | grep -v '^[+-]#include' && \
+		exit 1)
 	@echo "Formatting Python code..."
 	@$(VENV)/bin/black run_tests.py tests/
 
