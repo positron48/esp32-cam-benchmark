@@ -47,6 +47,10 @@ jobs:
     - name: Check code formatting
       run: |
         make format
+        echo "Checking git diff for non-C++ files:"
+        git diff ':!*.h' ':!*.cpp'
+        echo "Checking git diff for C++ files (excluding includes):"
+        git diff '*.h' '*.cpp' | grep -v '^[+-]#include' || true
         # Проверяем только изменения в форматировании, игнорируя порядок include директив
         git diff --exit-code ':!*.h' ':!*.cpp' || \
           (echo "Code formatting issues found in non-C++ files. Run 'make format' locally" && exit 1)

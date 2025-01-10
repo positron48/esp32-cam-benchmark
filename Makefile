@@ -42,7 +42,7 @@ lint: venv
 	$(VENV)/bin/ruff check run_tests.py tests/
 	$(VENV)/bin/pylint --fail-under=8.0 run_tests.py tests/
 
-# Format code without checking
+# Check code formatting
 format: venv
 	@echo "Checking clang-format version..."
 	@clang-format-14 --version
