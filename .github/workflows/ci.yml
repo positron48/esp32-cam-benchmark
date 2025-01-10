@@ -50,12 +50,18 @@ jobs:
         echo "Checking git diff for non-C++ files:"
         git diff ':!*.h' ':!*.cpp'
         echo "Checking git diff for C++ files (excluding includes):"
-        git diff '*.h' '*.cpp' | grep -v '^[+-]#include' || true
+        git diff '*.h' '*.cpp' > cpp_diff.txt
+        echo "C++ diff content:"
+        cat cpp_diff.txt
+        echo "C++ diff without includes:"
+        cat cpp_diff.txt | grep -v '^[+-]#include' || true
         # Проверяем только изменения в форматировании, игнорируя порядок include директив
         git diff --exit-code ':!*.h' ':!*.cpp' || \
           (echo "Code formatting issues found in non-C++ files. Run 'make format' locally" && exit 1)
-        git diff --exit-code '*.h' '*.cpp' | grep -v '^[+-]#include' || \
-          (echo "Code formatting issues found in C++ files (excluding include order). Run 'make format' locally" && exit 1)
+        if [ -s cpp_diff.txt ]; then
+          cat cpp_diff.txt | grep -v '^[+-]#include' | grep '^[+-]' && \
+            (echo "Code formatting issues found in C++ files (excluding include order). Run 'make format' locally" && exit 1) || true
+        fi
     
     - name: Run tests
       run: |
