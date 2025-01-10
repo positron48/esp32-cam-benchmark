@@ -1,29 +1,31 @@
 #!/usr/bin/env python3
 
-import yaml
+import json
 import subprocess
 import time
-import os
-import json
-from typing import Dict, Any, List
-import cv2  # type: ignore
-import numpy as np
 from datetime import datetime
-from pathlib import Path
+from typing import Any, Dict, List
+
+import cv2  # type: ignore
+import yaml
 
 
 class ESPCamBenchmark:
     def __init__(self, config_file="bench_config.yml"):
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             self.config = yaml.safe_load(f)
 
-    def build_firmware(self, params: Dict[str, Any], dry_run: bool = False) -> List[str]:
+    def build_firmware(
+        self,
+        params: Dict[str, Any],
+        dry_run: bool = False,
+    ) -> List[str]:
         """Build firmware with specified parameters
-        
+
         Args:
             params: Dictionary with build parameters
             dry_run: If True, only return the command without executing it
-        
+
         Returns:
             List of command arguments
         """
@@ -111,7 +113,10 @@ class ESPCamBenchmark:
 
             # Run video capture test if enabled
             if test_params.get("video_protocol"):
-                video_path = f"results/video/{test_params['video_protocol']}_{test_params['resolution']}_{test_params['quality']}.mp4"
+                video_path = (
+                    f"results/video/{test_params['video_protocol']}_"
+                    f"{test_params['resolution']}_{test_params['quality']}.mp4"
+                )
                 self.capture_video(self.config["test_duration"], video_path)
 
             # Run control test if enabled

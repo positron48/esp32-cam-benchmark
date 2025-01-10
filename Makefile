@@ -64,10 +64,10 @@ check: venv
 fix: venv
 	@echo "Attempting to fix code issues..."
 	@echo "1. Fixing C++ formatting and issues..."
-	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format -i -style=file
-	-$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
+	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i -style=file
+	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
-		firmware/src/ 2>cppcheck_errors.txt || true
+		firmware/src/ 2>cppcheck_errors.txt
 	@echo "2. Fixing Python code..."
 	# Sort imports
 	$(VENV)/bin/isort run_tests.py tests/
@@ -75,8 +75,8 @@ fix: venv
 	$(VENV)/bin/autoflake --in-place --remove-all-unused-imports --remove-unused-variables run_tests.py tests/*.py
 	# Upgrade Python syntax
 	$(VENV)/bin/pyupgrade --py38-plus run_tests.py tests/*.py
-	# Fix common Python issues
-	$(VENV)/bin/ruff --fix run_tests.py tests/
+	# Fix common Python issues with ruff
+	$(VENV)/bin/ruff check --fix run_tests.py tests/
 	# Format code
 	$(VENV)/bin/black run_tests.py tests/
 	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive run_tests.py tests/*.py

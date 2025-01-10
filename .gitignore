@@ -37,3 +37,6 @@ results/
 # Environment variables
 .env
 .env.local
+
+# Logs and reports
+cppcheck_errors.txt
