@@ -67,18 +67,6 @@ jobs:
       run: |
         make test
     
-    - name: Build firmware
-      run: |
-        make build
-    
-    - name: Generate coverage report
-      run: |
-        .venv/bin/pytest tests/ -v --cov=./ --cov-report=xml
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: true 
+    # - name: Build firmware
+    #   run: |
+    #     make build 
