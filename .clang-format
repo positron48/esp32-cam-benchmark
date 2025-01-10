@@ -22,4 +22,4 @@ SpaceBeforeParens: ControlStatements
 SpacesBeforeTrailingComments: 2
 SpacesInParentheses: false
 TabWidth: 4
-UseTab: Never 
+UseTab: Never
