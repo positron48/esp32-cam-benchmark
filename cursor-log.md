@@ -148,3 +148,7 @@ mqtt не нужен
 
 ---
 
+Your workflow is using a version of actions/cache that is scheduled for deprecation, actions/cache@v2. Please update your workflow to use either v3 or v4 of actions/cache to avoid interruptions.
+
+---
+
