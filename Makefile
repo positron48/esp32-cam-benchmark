@@ -44,10 +44,12 @@ lint: venv
 
 # Format code without checking
 format: venv
+	@echo "Checking clang-format version..."
+	@clang-format --version
 	@echo "Formatting C++ code..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i -style=file
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
 	@echo "Checking if C++ code is properly formatted..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format --dry-run --Werror -style=file || \
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format --dry-run --Werror --style=file:.clang-format || \
 		(echo "C++ code is not properly formatted. Please run 'make format' locally and commit the changes." && exit 1)
 	@echo "Formatting Python code..."
 	@$(VENV)/bin/black run_tests.py tests/
@@ -74,7 +76,7 @@ check: venv
 fix: venv
 	@echo "Attempting to fix code issues..."
 	@echo "1. Fixing C++ formatting and issues..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i -style=file
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
 	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
 		firmware/src/ 2>cppcheck_errors.txt
@@ -92,7 +94,7 @@ fix: venv
 	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive run_tests.py tests/*.py
 	@echo "3. Running format..."
 	@echo "Formatting C++ code again to ensure consistency..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i -style=file
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
 	@echo "Formatting Python code again to ensure consistency..."
 	@$(VENV)/bin/black run_tests.py tests/
 	@echo "Fix completed. Please review changes and run tests."
