@@ -2,7 +2,7 @@
 
 // WiFi credentials are defined via build flags
 #ifndef WIFI_SSID
-#define WIFI_SSID "your_ssid"     // Default value if not defined
+#define WIFI_SSID "your_ssid"  // Default value if not defined
 #endif
 
 #ifndef WIFI_PASS

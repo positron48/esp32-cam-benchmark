@@ -14,7 +14,7 @@ void initControlHTTP() {
         [](AsyncWebServerRequest* request) { request->send(200); },
         nullptr,
         [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-            JsonDocument         doc;
+            StaticJsonDocument<200> doc;
             DeserializationError error = deserializeJson(doc, (const char*) data, len);
             if (error) {
                 request->send(400, "text/plain", "Invalid JSON");
@@ -39,7 +39,7 @@ void initControlHTTP() {
         });
 
     server.on("/status", HTTP_GET, [](AsyncWebServerRequest* request) {
-        JsonDocument doc;
+        StaticJsonDocument<200> doc;
         doc["pan"]        = camera_get_pan();
         doc["tilt"]       = camera_get_tilt();
         doc["zoom"]       = camera_get_zoom();
