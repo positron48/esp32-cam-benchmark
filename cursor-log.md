@@ -152,3 +152,7 @@ Your workflow is using a version of actions/cache that is scheduled for deprecat
 
 ---
 
+CI прошел, убери все костыли для версии clang-format-14, используй без указания версии стандартный пакет, убери кастомный репозиторий
+
+---
+

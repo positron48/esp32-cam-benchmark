@@ -45,17 +45,17 @@ lint: venv
 # Check code formatting
 format: venv
 	@echo "Checking clang-format version..."
-	@clang-format-14 --version
+	@clang-format --version
 	@echo "Checking C++ formatting..."
 	@for file in $$(find firmware/src -iname "*.h" -o -iname "*.cpp"); do \
-		if ! clang-format-14 --dry-run --Werror --style=file:.clang-format "$$file" 2>/dev/null; then \
+		if ! clang-format --dry-run --Werror --style=file:.clang-format "$$file" 2>/dev/null; then \
 			echo "\nFormatting issues in $$file:"; \
 			echo "Expected format:"; \
-			clang-format-14 --style=file:.clang-format "$$file"; \
+			clang-format --style=file:.clang-format "$$file"; \
 			echo "\nActual file:"; \
 			cat "$$file"; \
 			echo "\nDiff:"; \
-			clang-format-14 --style=file:.clang-format "$$file" | diff -u "$$file" -; \
+			clang-format --style=file:.clang-format "$$file" | diff -u "$$file" -; \
 			exit 1; \
 		fi \
 	done
@@ -85,7 +85,7 @@ check: venv
 fix: venv
 	@echo "Attempting to fix code issues..."
 	@echo "1. Fixing C++ formatting and issues..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 -i --style=file:.clang-format
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
 	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
 		firmware/src/ 2>cppcheck_errors.txt
@@ -103,7 +103,7 @@ fix: venv
 	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive run_tests.py tests/*.py
 	@echo "3. Running format..."
 	@echo "Formatting C++ code again to ensure consistency..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 -i --style=file:.clang-format
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
 	@echo "Formatting Python code again to ensure consistency..."
 	@$(VENV)/bin/black run_tests.py tests/
 	@echo "Fix completed. Please review changes and run tests."
@@ -119,13 +119,7 @@ flash: venv
 # Install system dependencies (required only once)
 install-system-deps:
 	sudo apt-get update
-	sudo apt-get install -y python3-venv
-	# Install specific version of clang-format
-	wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-	sudo add-apt-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-14 main"
-	sudo apt-get update
-	sudo apt-get install -y clang-format-14
-	sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-14 100
+	sudo apt-get install -y python3-venv clang-format
 
 # Run Python linting
 pylint: venv
