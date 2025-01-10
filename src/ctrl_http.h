@@ -15,7 +15,7 @@ void initControlHTTP() {
         nullptr,
         [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
             StaticJsonDocument<200> doc;
-            DeserializationError error = deserializeJson(doc, (const char*) data, len);
+            DeserializationError    error = deserializeJson(doc, (const char*) data, len);
             if (error) {
                 request->send(400, "text/plain", "Invalid JSON");
                 return;
