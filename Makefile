@@ -45,11 +45,11 @@ lint: venv
 # Format code without checking
 format: venv
 	@echo "Checking clang-format version..."
-	@clang-format --version
+	@clang-format-14 --version
 	@echo "Formatting C++ code..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 -i --style=file:.clang-format
 	@echo "Checking if C++ code is properly formatted..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format --dry-run --Werror --style=file:.clang-format || \
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 --dry-run --Werror --style=file:.clang-format || \
 		(echo "C++ code is not properly formatted. Please run 'make format' locally and commit the changes." && exit 1)
 	@echo "Formatting Python code..."
 	@$(VENV)/bin/black run_tests.py tests/
@@ -59,7 +59,7 @@ check: venv
 	@echo "Running all checks..."
 	@echo "1. Running C++ checks..."
 	@echo "Checking C++ formatting..."
-	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format --dry-run --Werror -style=file
+	find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs clang-format-14 --dry-run --Werror -style=file
 	-$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
 		firmware/src/
@@ -76,7 +76,7 @@ check: venv
 fix: venv
 	@echo "Attempting to fix code issues..."
 	@echo "1. Fixing C++ formatting and issues..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 -i --style=file:.clang-format
 	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
 		firmware/src/ 2>cppcheck_errors.txt
@@ -94,7 +94,7 @@ fix: venv
 	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive run_tests.py tests/*.py
 	@echo "3. Running format..."
 	@echo "Formatting C++ code again to ensure consistency..."
-	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
+	@find firmware/src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format-14 -i --style=file:.clang-format
 	@echo "Formatting Python code again to ensure consistency..."
 	@$(VENV)/bin/black run_tests.py tests/
 	@echo "Fix completed. Please review changes and run tests."
@@ -110,7 +110,13 @@ flash: venv
 # Install system dependencies (required only once)
 install-system-deps:
 	sudo apt-get update
-	sudo apt-get install -y clang-format python3-venv
+	sudo apt-get install -y python3-venv
+	# Install specific version of clang-format
+	wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+	sudo add-apt-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-14 main"
+	sudo apt-get update
+	sudo apt-get install -y clang-format-14
+	sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-14 100
 
 # Run Python linting
 pylint: venv
