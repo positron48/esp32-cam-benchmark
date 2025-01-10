@@ -111,8 +111,7 @@ class ESPCamBenchmark:
 
         return results
 
-    def run_test_combination(
-            self, test_params: Dict[str, Any]) -> Dict[str, Any]:
+    def run_test_combination(self, test_params: Dict[str, Any]) -> Dict[str, Any]:
         """Run a single test combination"""
         results = {
             "params": test_params,
@@ -190,8 +189,7 @@ class ESPCamBenchmark:
                                                 "metrics": metrics,
                                                 "raw_mode": raw_mode,
                                             }
-                                            results = self.run_test_combination(
-                                                params)
+                                            results = self.run_test_combination(params)
                                             all_results.append(results)
 
                                             # Save results after each test

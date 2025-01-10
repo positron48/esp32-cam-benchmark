@@ -29,8 +29,6 @@ disable=
     C0103, # invalid-name
     C0301, # line-too-long (handled by black)
     C0302, # too-many-lines
-    C0330, # wrong-hanging-indentation (handled by black)
-    C0326, # bad-whitespace (handled by black)
     W0311, # bad-indentation (handled by black)
     W0511, # fixme
     R0903, # too-few-public-methods
