@@ -2,7 +2,6 @@ wifi:
   # Credentials are loaded from environment variables
   ssid: ${WIFI_SSID}
   password: ${WIFI_PASSWORD}
-  device_ip: ${DEVICE_IP}
   connection_timeout: 30     # Seconds to wait for WiFi connection
 
 camera_resolutions:

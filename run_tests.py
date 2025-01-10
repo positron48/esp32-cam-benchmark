@@ -9,14 +9,16 @@ import argparse
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import cv2  # type: ignore
+import serial
 import yaml
 from dotenv import load_dotenv
 
@@ -59,6 +61,93 @@ def setup_logging():
     return logging.getLogger("ESP32-CAM-Benchmark")
 
 
+def find_esp_port() -> Optional[str]:
+    """Find ESP32 COM port.
+
+    Returns:
+        String with port name or None if not found
+    """
+    import serial.tools.list_ports
+
+    # Common ESP32 USB-UART bridge chips
+    esp_chips = {
+        "CP210x": "Silicon Labs CP210x",
+        "CH340": "USB-Serial CH340",
+        "FTDI": "FTDI",
+    }
+
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        for _, chip_id in esp_chips.items():
+            if chip_id.lower() in port.description.lower():
+                return port.device
+    return None
+
+
+def flash_firmware(firmware_path: str, port: str) -> None:
+    """Flash firmware to ESP32-CAM.
+
+    Args:
+        firmware_path: Path to firmware binary
+        port: COM port to use
+
+    Raises:
+        RuntimeError: If flashing fails
+    """
+    cmd = [
+        "esptool.py",
+        "--chip",
+        "esp32",
+        "--port",
+        port,
+        "--baud",
+        "921600",
+        "--before",
+        "default_reset",
+        "--after",
+        "hard_reset",
+        "write_flash",
+        "-z",
+        "--flash_mode",
+        "dio",
+        "--flash_freq",
+        "80m",
+        "--flash_size",
+        "detect",
+        "0x1000",
+        firmware_path,
+    ]
+
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to flash firmware: {e.stdout}") from e
+
+
+def wait_for_ip(port: str, timeout: int = 30) -> Optional[str]:
+    """Wait for IP address from ESP32 serial output.
+
+    Args:
+        port: COM port to read from
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        IP address string or None if not found
+    """
+    with serial.Serial(port, 115200, timeout=1) as ser:
+        start_time = time.time()
+        ip_pattern = re.compile(r"IP Address:\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
+
+        while (time.time() - start_time) < timeout:
+            if ser.in_waiting:
+                line = ser.readline().decode("utf-8", errors="ignore")
+                match = ip_pattern.search(line)
+                if match:
+                    return match.group(1)
+            time.sleep(0.1)
+    return None
+
+
 class ESPCamBenchmark:
     """ESP32-CAM benchmark test runner.
 
@@ -79,10 +168,15 @@ class ESPCamBenchmark:
         self.config = load_config(config_file)
         self.logger.info("Configuration loaded successfully")
 
+        # Find ESP32 port
+        self.port = find_esp_port()
+        if not self.port:
+            self.logger.error("ESP32-CAM not found. Please check connection")
+            raise RuntimeError("ESP32-CAM not found")
+        self.logger.info("Found ESP32-CAM on port %s", self.port)
+
         # Verify required configuration
-        if not all(
-            self.config["wifi"].get(key) for key in ["ssid", "password", "device_ip"]
-        ):
+        if not all(self.config["wifi"].get(key) for key in ["ssid", "password"]):
             self.logger.error(
                 "Missing required WiFi configuration. Please check your .env file"
             )
@@ -135,7 +229,9 @@ class ESPCamBenchmark:
         )
 
         # Get ESP32-CAM IP address from WiFi connection
-        esp32_ip = self.config["wifi"].get("device_ip", "192.168.4.1")
+        esp32_ip = wait_for_ip(self.port)
+        if not esp32_ip:
+            raise RuntimeError("Failed to get ESP32-CAM IP address")
 
         # Construct video stream URL based on protocol
         stream_url = None
@@ -154,61 +250,30 @@ class ESPCamBenchmark:
             raise ValueError("Invalid video protocol or stream URL")
 
         self.logger.info("Connecting to video stream at %s", stream_url)
-        cap = cv2.VideoCapture(stream_url)  # type: ignore
-
+        cap = cv2.VideoCapture(stream_url)
         if not cap.isOpened():
-            self.logger.error("Failed to connect to ESP32-CAM video stream")
-            raise RuntimeError("Failed to connect to ESP32-CAM video stream")
+            self.logger.error("Failed to open video stream")
+            raise RuntimeError("Failed to open video stream")
 
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # type: ignore
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  # type: ignore
-        fps = 30
+        # Get video properties
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
 
-        self.logger.info("Video parameters: %dx%d @ %d FPS", width, height, fps)
-        out = cv2.VideoWriter(  # type: ignore
-            output_path,
-            cv2.VideoWriter_fourcc(*"mp4v"),  # type: ignore
-            fps,
-            (width, height),
-        )
+        # Create video writer
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
 
-        frames_captured = 0
         start_time = time.time()
-        connection_errors = 0
-        max_connection_errors = 5
-
         while (time.time() - start_time) < duration:
-            try:
-                ret, frame = cap.read()
-                if ret:
-                    out.write(frame)
-                    frames_captured += 1
-                    connection_errors = 0  # Reset error counter on successful frame
-                else:
-                    connection_errors += 1
-                    self.logger.warning(
-                        "Failed to read frame, attempt %d/%d",
-                        connection_errors,
-                        max_connection_errors,
-                    )
-                    if connection_errors >= max_connection_errors:
-                        raise RuntimeError("Too many failed frame reads")
-                    time.sleep(0.1)  # Short delay before retry
-            except Exception as e:
-                self.logger.error("Error capturing frame: %s", str(e))
+            ret, frame = cap.read()
+            if not ret:
                 break
-
-        actual_duration = time.time() - start_time
-        actual_fps = frames_captured / actual_duration if actual_duration > 0 else 0
-        self.logger.info(
-            "Video capture completed: %d frames in %.2f seconds (%.2f FPS)",
-            frames_captured,
-            actual_duration,
-            actual_fps,
-        )
+            out.write(frame)
 
         cap.release()
         out.release()
+        self.logger.info("Video capture completed")
 
     def test_control(self, duration: int) -> Dict[str, Any]:
         """Test control commands"""
@@ -257,7 +322,7 @@ class ESPCamBenchmark:
     def run_test_combination(self, test_params: Dict[str, Any]) -> Dict[str, Any]:
         """Run a single test combination"""
         self.logger.info("Starting test with parameters: %s", test_params)
-        self.current_test_params = test_params  # Store current test parameters
+        self.current_test_params = test_params
         results = {
             "params": test_params,
             "timestamp": datetime.now().isoformat(),
@@ -267,10 +332,26 @@ class ESPCamBenchmark:
         }
 
         try:
-            # Build and flash firmware
+            # Build firmware
             self.build_firmware(test_params)
-            self.logger.info("Waiting %d seconds for device to boot", 5)
-            time.sleep(5)  # Wait for device to boot
+
+            # Flash firmware
+            firmware_path = ".pio/build/esp32cam/firmware.bin"
+            self.logger.info("Flashing firmware to ESP32-CAM...")
+            flash_firmware(firmware_path, self.port)
+
+            # Wait for device to boot and get IP
+            self.logger.info("Waiting for device to boot and get IP...")
+            ip_address = wait_for_ip(self.port)
+            if not ip_address:
+                raise RuntimeError("Failed to get device IP address")
+            self.logger.info("Device IP address: %s", ip_address)
+
+            # Update config with actual IP
+            self.config["wifi"]["device_ip"] = ip_address
+
+            # Wait additional time for all services to start
+            time.sleep(self.config.get("warmup_time", 5))
 
             # Run video capture test if enabled
             if test_params.get("video_protocol"):
@@ -280,7 +361,6 @@ class ESPCamBenchmark:
                 )
                 self.capture_video(self.config["test_duration"], video_path)
 
-                # Add video metrics to results
                 results["video_metrics"] = {
                     "path": video_path,
                     "duration": self.config["test_duration"],
