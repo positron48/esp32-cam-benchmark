@@ -1,6 +1,9 @@
 wifi:
-  ssid: "your_wifi_ssid"
-  password: "your_wifi_password"
+  # Credentials are loaded from environment variables
+  ssid: ${WIFI_SSID}
+  password: ${WIFI_PASSWORD}
+  device_ip: ${DEVICE_IP}
+  connection_timeout: 30     # Seconds to wait for WiFi connection
 
 camera_resolutions:
   - QQVGA    # 160x120
