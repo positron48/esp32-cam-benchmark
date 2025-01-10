@@ -110,6 +110,7 @@ fix: venv
 
 # Run tests
 test: venv
+	mkdir -p results/video results/logs results/metrics
 	$(PYTHON) -m pytest tests/ -v
 
 # Flash firmware
