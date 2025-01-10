@@ -1,3 +1,9 @@
+"""Tests for ESP32-CAM benchmark functionality.
+
+This module contains tests for the ESP32-CAM benchmark runner,
+including configuration loading, directory structure, and command generation.
+"""
+
 from pathlib import Path
 
 import pytest

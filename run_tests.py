@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""ESP32-CAM benchmark test runner.
+
+This module provides functionality to run various benchmarks for ESP32-CAM,
+including video streaming and control protocol testing.
+"""
 
 import json
 import subprocess
@@ -11,8 +16,19 @@ import yaml
 
 
 class ESPCamBenchmark:
+    """ESP32-CAM benchmark test runner.
+
+    This class provides methods to build firmware with different configurations
+    and run various benchmarks including video streaming and control protocols.
+    """
+
     def __init__(self, config_file="bench_config.yml"):
-        with open(config_file) as f:
+        """Initialize benchmark runner.
+
+        Args:
+            config_file: Path to the configuration file
+        """
+        with open(config_file, encoding="utf-8") as f:
             self.config = yaml.safe_load(f)
 
     def build_firmware(
@@ -187,11 +203,15 @@ class ESPCamBenchmark:
         return all_results
 
     def _save_results(self, results: Dict[str, Any]) -> None:
-        """Save test results to file"""
+        """Save test results to file.
+
+        Args:
+            results: Dictionary containing test results
+        """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         result_file = f"results/logs/test_{timestamp}.json"
 
-        with open(result_file, "w") as f:
+        with open(result_file, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
 
 

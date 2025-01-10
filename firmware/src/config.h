@@ -27,8 +27,13 @@
 
 // Metrics
 #if ENABLE_METRICS
-#define START_METRIC(name) unsigned long name##_start = millis()
-#define END_METRIC(name)   Serial.printf("%s: %lu ms\n", #name, millis() - name##_start)
+#define START_METRIC(name) uint32_t name##_start = millis()
+#define END_METRIC(name)                                                             \
+    do {                                                                             \
+        uint32_t name##_end      = millis();                                         \
+        uint32_t name##_duration = static_cast<uint32_t>(name##_end - name##_start); \
+        Serial.printf("%s: %u ms\n", #name, name##_duration);                        \
+    } while (0)
 #else
 #define START_METRIC(name)
 #define END_METRIC(name)

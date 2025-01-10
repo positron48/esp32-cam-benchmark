@@ -32,12 +32,15 @@ clean:
 
 # Run static analysis without fixing
 lint: venv
-	-$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
+	@echo "Running C++ checks..."
+	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
-		firmware/src/
-	-$(VENV)/bin/cpplint --filter=-legal/copyright,-build/include_subdir \
+		firmware/src/ 2>cppcheck_errors.txt || (cat cppcheck_errors.txt && exit 1)
+	$(VENV)/bin/cpplint --filter=-legal/copyright,-build/include_subdir,-whitespace/newline,-readability/braces \
 		--recursive firmware/src/
-	-$(VENV)/bin/pylint run_tests.py tests/
+	@echo "Running Python checks..."
+	$(VENV)/bin/ruff check run_tests.py tests/
+	$(VENV)/bin/pylint --fail-under=8.0 run_tests.py tests/
 
 # Format code without checking
 format: venv
