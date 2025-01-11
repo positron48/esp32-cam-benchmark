@@ -77,6 +77,7 @@ def test_video_url_generation(
     # IP address should be obtained from wait_for_ip mock
     expected_ip = "192.168.1.100"  # This matches the mock in benchmark_instance fixture
     mock_wait_for_ip.return_value = expected_ip
+    benchmark_instance.config["wifi"]["device_ip"] = expected_ip
 
     # Configure mock
     mock_cv2.VideoCapture.return_value.isOpened.return_value = True
@@ -91,7 +92,7 @@ def test_video_url_generation(
         benchmark_instance.capture_video(1, "test.mp4")
     mock_cv2.VideoCapture.assert_called_once()
     args = mock_cv2.VideoCapture.call_args[0]
-    assert args[0] == f"http://{expected_ip}:80/stream"
+    assert args[0] == f"http://{expected_ip}:80/video"
 
     # Test RTSP URL
     mock_cv2.VideoCapture.reset_mock()
