@@ -5,17 +5,20 @@
 #include "config.h"
 #include "esp_camera.h"
 
-// Настраиваем разделитель для multipart:
 #define BOUNDARY "123456789000000000000987654321"
 
-// Глобальный сервер (объявлен где-то как extern):
+// Глобальный сервер (extern где-то в вашем main.cpp)
 extern AsyncWebServer server;
 
-// Инициализация видеострима по HTTP
+/*
+  Ключевой момент: если заголовок (boundary+Content-Length) больше, чем maxLen,
+  мы отправляем его не за один вызов snprintf -> memcpy, а частями.
+*/
+
 void initVideoHTTP() {
     Serial.println("Initializing video HTTP...");
 
-    // Простой маршрут, который отдаёт HTML-страничку с <img src="/video">
+    // Маршрут: HTML-страница с <img src="/video">
     server.on("/stream", HTTP_GET, [](AsyncWebServerRequest* request) {
         Serial.println("Stream page requested");
         AsyncWebServerResponse* response = request->beginResponse(
@@ -34,71 +37,118 @@ void initVideoHTTP() {
         Serial.println("Stream page sent");
     });
 
-    // Маршрут /video, который будет непрерывно отдавать кадры (Chunked Response)
+    // Маршрут /video — отправка MJPEG потока chunked-методом
     server.on("/video", HTTP_GET, [](AsyncWebServerRequest *request) {
         Serial.println("Video stream requested");
 
-        // Создаём потоковый (chunked) ответ с типом "multipart/x-mixed-replace"
         AsyncWebServerResponse* response = request->beginChunkedResponse(
             String("multipart/x-mixed-replace;boundary=") + BOUNDARY,
             [=](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-                // Статические переменные, чтобы хранить состояние между вызовами
-                static camera_fb_t* fb     = nullptr;  // текущий кадр
-                static size_t offset       = 0;         // сколько байт уже отправили
-                static bool sendingHeader  = true;      // отправляем ли сейчас заголовки
+                // Статические переменные для хранения контекста между вызовами:
+                static camera_fb_t* fb        = nullptr;
+                static size_t offset          = 0;       // сколько уже отправили байт из fb->buf
+                static bool needHeader        = true;    // надо ли сформировать новый заголовок?
+                static int failCount          = 0;
+                
+                // -- Поля для "частичной" отправки заголовка:
+                static char  headerBuf[128];  // буфер, куда сформируем заголовок
+                static size_t headerLen       = 0;       // фактическая длина заголовка
+                static size_t headerSent      = 0;       // сколько байт заголовка уже отправили
 
-                // Если кадр отсутствует, значит, надо взять новый
+                // 1) Если нет текущего кадра, берём новый
                 if (!fb) {
                     fb = esp_camera_fb_get();
                     if (!fb) {
-                        Serial.println("Camera capture failed");
-                        return 0; // отправим 0, сервер подождёт следующего колбэка
+                        failCount++;
+                        Serial.printf("[video_http] Camera capture failed, failCount=%d\n", failCount);
+                        if (failCount > 5) {
+                            vTaskDelay(pdMS_TO_TICKS(100)); // небольшая задержка, если нет кадров
+                            failCount = 0;
+                        }
+                        // Возвращаем 0, чтобы не портить поток
+                        return 0;
                     }
+                    failCount = 0;
                     offset = 0;
-                    sendingHeader = true;
+                    needHeader = true;
+                    headerSent = 0;
+                    headerLen = 0;
+
+                    Serial.printf("[video_http] Got new frame, size=%u\n", fb->len);
                 }
 
-                // Если надо отправить заголовок (boundary + Content-Type + Content-Length)
-                if (sendingHeader) {
-                    // Формируем boundary и заголовки (Content-Type, Content-Length)
-                    int len = snprintf(
-                        (char*)buffer,
-                        maxLen,
-                        "\r\n--%s\r\n"
-                        "Content-Type: image/jpeg\r\n"
-                        "Content-Length: %u\r\n\r\n",
-                        BOUNDARY,
-                        fb->len
-                    );
-                    sendingHeader = false;
-                    return len; 
+                // 2) Сначала, если нужно, готовим и отправляем заголовок
+                if (needHeader) {
+                    if (headerLen == 0) {
+                        // Формируем строку заголовка (boundary + Content-Length + Content-Type)
+                        headerLen = snprintf(
+                            headerBuf,
+                            sizeof(headerBuf),
+                            "\r\n--%s\r\n"
+                            "Content-Type: image/jpeg\r\n"
+                            "Content-Length: %u\r\n\r\n",
+                            BOUNDARY,
+                            fb->len
+                        );
+                        // На всякий случай проверяем, не вышли ли за пределы headerBuf
+                        if (headerLen >= sizeof(headerBuf)) {
+                            Serial.println("[video_http] ERROR: headerBuf too small for header!");
+                            // Освобождаем fb и возвращаем 0
+                            esp_camera_fb_return(fb);
+                            fb = nullptr;
+                            return 0;
+                        }
+                        Serial.printf("[video_http] Header length=%u\n", (unsigned)headerLen);
+                    }
+
+                    // Сколько ещё осталось байт заголовка, которые не отправили?
+                    size_t remainHeader = headerLen - headerSent;
+                    // Отправим кусок, не превышающий maxLen
+                    size_t chunkSize = (remainHeader < maxLen) ? remainHeader : maxLen;
+
+                    memcpy(buffer, headerBuf + headerSent, chunkSize);
+                    headerSent += chunkSize;
+
+                    // Если закончили отправлять заголовок — переходим к телу JPEG
+                    if (headerSent >= headerLen) {
+                        needHeader = false;
+                    }
+
+                    return chunkSize;
                 }
 
-                // Отправляем часть JPEG-данных кадра
-                size_t remain = fb->len - offset;  // сколько байт осталось отправить
+                // 3) Отправляем тело (JPEG) по кускам
+                size_t remain = fb->len - offset;  // ещё неотправленные байты кадра
+                if (remain == 0) {
+                    // Вдруг offset == fb->len, но мы почему-то опять тут
+                    // Освободим кадр, чтобы взять следующий
+                    esp_camera_fb_return(fb);
+                    fb = nullptr;
+                    return 0;
+                }
+
                 size_t toSend = (remain < maxLen) ? remain : maxLen;
-
                 memcpy(buffer, fb->buf + offset, toSend);
                 offset += toSend;
 
-                // Если весь кадр отправлен — освобождаем буфер и обнуляем указатель
+                // Если дошли до конца кадра
                 if (offset >= fb->len) {
                     esp_camera_fb_return(fb);
                     fb = nullptr;
+                    Serial.println("[video_http] Frame fully sent!");
                 }
 
-                return toSend; // возвращаем, сколько реально записали
+                return toSend;
             }
         );
 
-        // Добавляем необходимые заголовки
+        // Доп. заголовки
         response->addHeader("Access-Control-Allow-Origin", "*");
         response->addHeader("Connection", "keep-alive");
         response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         response->addHeader("Pragma", "no-cache");
         response->addHeader("Expires", "0");
 
-        // Отправляем потоковое видео
         request->send(response);
         Serial.println("Chunked MJPEG stream started");
     });
@@ -106,8 +156,7 @@ void initVideoHTTP() {
     Serial.println("Video HTTP initialized");
 }
 
-// При желании можно управлять задержкой между кадрами (FPS).
 void handleVideoHTTP() {
-    // FRAME_INTERVAL_MS определяется в config.h
+    // Если хотим ограничить FPS (определено в config.h)
     vTaskDelay(pdMS_TO_TICKS(FRAME_INTERVAL_MS));
 }
