@@ -30,6 +30,10 @@ jobs:
       run: |
         make install-system-deps
     
+    - name: Create required directories
+      run: |
+        mkdir -p results/logs results/video results/metrics
+    
     - name: Setup virtual environment and install dependencies
       run: |
         python -m venv .venv

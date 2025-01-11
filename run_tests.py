@@ -49,6 +49,10 @@ def load_config(config_file: str) -> Dict[str, Any]:
 
 def setup_logging():
     """Setup logging configuration"""
+    # Ensure log directory exists
+    log_dir = Path("results/logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
