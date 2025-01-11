@@ -102,7 +102,7 @@ void setup() {
 }
 
 void loop() {
-    static unsigned long lastLog = 0;
+    static uint32_t lastLog = 0;
     handleVideoHTTP();
 
     // Log status every 10 seconds

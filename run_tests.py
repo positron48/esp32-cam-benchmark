@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 
 import cv2  # type: ignore
 import serial
+import serial.tools.list_ports
 import yaml
 from dotenv import load_dotenv
 
@@ -67,8 +68,6 @@ def find_esp_port() -> Optional[str]:
     Returns:
         String with port name or None if not found
     """
-    import serial.tools.list_ports
-
     # Common ESP32 USB-UART bridge chips
     esp_chips = {
         "CP210x": "Silicon Labs CP210x",
@@ -84,7 +83,8 @@ def find_esp_port() -> Optional[str]:
     logging.debug("Found serial ports:")
     for port in ports:
         logging.debug(
-            f"Port: {port.device}, Description: {port.description}, HW ID: {port.hwid}"
+            "Port: %(device)s, Description: %(desc)s, HW ID: %(hwid)s",
+            {"device": port.device, "desc": port.description, "hwid": port.hwid},
         )
         for _, chip_id in esp_chips.items():
             if (
@@ -95,17 +95,16 @@ def find_esp_port() -> Optional[str]:
     return None
 
 
-def flash_firmware(firmware_path: str, port: str) -> None:
+def flash_firmware(port: str) -> None:
     """Flash firmware to ESP32-CAM.
 
     Args:
-        firmware_path: Path to firmware binary
         port: COM port to use
 
     Raises:
         RuntimeError: If flashing fails
     """
-    cmd = ["pio", "run", "--target", "upload"]
+    cmd = ["pio", "run", "--target", "upload", "--upload-port", port]
 
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -161,6 +160,9 @@ class ESPCamBenchmark:
         # Load configuration with environment variables
         self.config = load_config(config_file)
         self.logger.info("Configuration loaded successfully")
+
+        # Initialize current test parameters
+        self.current_test_params = {}
 
         # Find ESP32 port
         self.port = find_esp_port()
@@ -338,9 +340,8 @@ class ESPCamBenchmark:
             self.build_firmware(test_params)
 
             # Flash firmware
-            firmware_path = ".pio/build/esp32cam/firmware.bin"
             self.logger.info("Flashing firmware to ESP32-CAM...")
-            flash_firmware(firmware_path, self.port)
+            flash_firmware(self.port)
 
             # Wait for device to boot and get IP
             self.logger.info("Waiting for device to boot and get IP...")
@@ -499,7 +500,7 @@ if __name__ == "__main__":
                 "Error: When running a single test, you must specify all test parameters:"
             )
             print("  --video-protocol, --control-protocol, --resolution, --quality")
-            exit(1)
+            sys.exit(1)
 
         test_params = {
             "video_protocol": (
