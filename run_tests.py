@@ -49,7 +49,7 @@ def load_config(config_file: str) -> Dict[str, Any]:
 def setup_logging():
     """Setup logging configuration"""
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
             logging.StreamHandler(sys.stdout),
@@ -74,12 +74,18 @@ def find_esp_port() -> Optional[str]:
         "CP210x": "Silicon Labs CP210x",
         "CH340": "USB-Serial CH340",
         "FTDI": "FTDI",
+        "USB2Serial": "USB2Serial",
+        "USB-Serial": "USB-Serial",
+        "USB Serial": "USB Serial",
+        "ACM": "ttyACM"
     }
 
     ports = serial.tools.list_ports.comports()
+    logging.debug("Found serial ports:")
     for port in ports:
+        logging.debug(f"Port: {port.device}, Description: {port.description}, HW ID: {port.hwid}")
         for _, chip_id in esp_chips.items():
-            if chip_id.lower() in port.description.lower():
+            if chip_id.lower() in port.description.lower() or chip_id.lower() in port.hwid.lower():
                 return port.device
     return None
 
@@ -94,29 +100,7 @@ def flash_firmware(firmware_path: str, port: str) -> None:
     Raises:
         RuntimeError: If flashing fails
     """
-    cmd = [
-        "esptool.py",
-        "--chip",
-        "esp32",
-        "--port",
-        port,
-        "--baud",
-        "921600",
-        "--before",
-        "default_reset",
-        "--after",
-        "hard_reset",
-        "write_flash",
-        "-z",
-        "--flash_mode",
-        "dio",
-        "--flash_freq",
-        "80m",
-        "--flash_size",
-        "detect",
-        "0x1000",
-        firmware_path,
-    ]
+    cmd = ["pio", "run", "--target", "upload"]
 
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -134,13 +118,18 @@ def wait_for_ip(port: str, timeout: int = 30) -> Optional[str]:
     Returns:
         IP address string or None if not found
     """
-    with serial.Serial(port, 115200, timeout=1) as ser:
+    with serial.Serial(port, 115200, timeout=1, rtscts=False, dsrdtr=False) as ser:
+        # Set RTS and DTR to 0 as specified in platformio.ini
+        ser.setRTS(False)
+        ser.setDTR(False)
+        
         start_time = time.time()
-        ip_pattern = re.compile(r"IP Address:\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
+        ip_pattern = re.compile(r"http://(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
 
         while (time.time() - start_time) < timeout:
             if ser.in_waiting:
                 line = ser.readline().decode("utf-8", errors="ignore")
+                logging.debug("Serial output: %s", line.strip())
                 match = ip_pattern.search(line)
                 if match:
                     return match.group(1)
