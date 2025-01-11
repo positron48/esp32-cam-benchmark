@@ -5,7 +5,7 @@ including configuration loading, directory structure, and command generation.
 """
 
 from contextlib import suppress
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -67,12 +67,16 @@ def test_build_parameters(benchmark_instance):
 
 @patch("run_tests.cv2")
 @patch("run_tests.serial.Serial")
-def test_video_url_generation(mock_serial, mock_cv2, benchmark_instance):
+@patch("run_tests.wait_for_ip")
+def test_video_url_generation(
+    mock_wait_for_ip, mock_serial, mock_cv2, benchmark_instance
+):
     """Test that video stream URLs are correctly generated"""
     # Set test parameters
     benchmark_instance.current_test_params = {"video_protocol": "HTTP"}
     # IP address should be obtained from wait_for_ip mock
     expected_ip = "192.168.1.100"  # This matches the mock in benchmark_instance fixture
+    mock_wait_for_ip.return_value = expected_ip
 
     # Configure mock
     mock_cv2.VideoCapture.return_value.isOpened.return_value = True
@@ -81,12 +85,6 @@ def test_video_url_generation(mock_serial, mock_cv2, benchmark_instance):
     mock_cv2.CAP_PROP_FRAME_WIDTH = 3
     mock_cv2.CAP_PROP_FRAME_HEIGHT = 4
     mock_cv2.CAP_PROP_FPS = 5
-
-    # Configure serial mock
-    mock_serial_instance = MagicMock()
-    mock_serial.return_value.__enter__.return_value = mock_serial_instance
-    mock_serial_instance.readline.return_value = f"IP Address: {expected_ip}".encode()
-    mock_serial_instance.in_waiting = True
 
     # Test HTTP URL
     with suppress(Exception):  # We expect an error when actually trying to capture

@@ -77,15 +77,20 @@ def find_esp_port() -> Optional[str]:
         "USB2Serial": "USB2Serial",
         "USB-Serial": "USB-Serial",
         "USB Serial": "USB Serial",
-        "ACM": "ttyACM"
+        "ACM": "ttyACM",
     }
 
     ports = serial.tools.list_ports.comports()
     logging.debug("Found serial ports:")
     for port in ports:
-        logging.debug(f"Port: {port.device}, Description: {port.description}, HW ID: {port.hwid}")
+        logging.debug(
+            f"Port: {port.device}, Description: {port.description}, HW ID: {port.hwid}"
+        )
         for _, chip_id in esp_chips.items():
-            if chip_id.lower() in port.description.lower() or chip_id.lower() in port.hwid.lower():
+            if (
+                chip_id.lower() in port.description.lower()
+                or chip_id.lower() in port.hwid.lower()
+            ):
                 return port.device
     return None
 
@@ -122,7 +127,7 @@ def wait_for_ip(port: str, timeout: int = 30) -> Optional[str]:
         # Set RTS and DTR to 0 as specified in platformio.ini
         ser.setRTS(False)
         ser.setDTR(False)
-        
+
         start_time = time.time()
         ip_pattern = re.compile(r"http://(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
 
@@ -223,6 +228,10 @@ class ESPCamBenchmark:
             raise RuntimeError("Failed to get ESP32-CAM IP address")
 
         # Construct video stream URL based on protocol
+        if not hasattr(self, "current_test_params") or not self.current_test_params:
+            raise ValueError("No test parameters set. Call run_test_combination first.")
+
+        # Construct video stream URL based on protocol
         stream_url = None
         if self.current_test_params["video_protocol"] == "HTTP":
             stream_url = f"http://{esp32_ip}:80/stream"
@@ -239,10 +248,14 @@ class ESPCamBenchmark:
             raise ValueError("Invalid video protocol or stream URL")
 
         self.logger.info("Connecting to video stream at %s", stream_url)
-        cap = cv2.VideoCapture(stream_url)
-        if not cap.isOpened():
-            self.logger.error("Failed to open video stream")
-            raise RuntimeError("Failed to open video stream")
+        try:
+            cap = cv2.VideoCapture(stream_url)
+            if not cap.isOpened():
+                self.logger.error("Failed to open video stream")
+                raise RuntimeError("Failed to open video stream")
+        except Exception as e:
+            self.logger.error("Error opening video stream: %s", str(e))
+            raise RuntimeError(f"Error opening video stream: {str(e)}") from e
 
         # Get video properties
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
