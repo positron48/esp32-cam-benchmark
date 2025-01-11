@@ -28,7 +28,7 @@
 ## Требования
 
 ### Системные зависимости
-- Python 3.9+
+- Python 3.8+
 - python3-venv
 - Компилятор C++
 - PlatformIO Core
@@ -51,16 +51,20 @@ cd ESP32-CAM_BENCHMARK
 make install-system-deps
 ```
 
-3. Создайте виртуальное окружение и установите зависимости:
-```bash
-make venv
-```
+3. Установите пакет:
+   - Для запуска бенчмарков:
+   ```bash
+   make install
+   ```
+   - Для разработки (включая все инструменты):
+   ```bash
+   make install-dev
+   ```
 
-4. Настройте WiFi в `bench_config.yml`:
-```yaml
-wifi:
-  ssid: "your_wifi_ssid"
-  password: "your_wifi_password"
+4. Настройте WiFi в `.env`:
+```bash
+cp .env.example .env
+# Отредактируйте .env, указав WIFI_SSID и WIFI_PASSWORD
 ```
 
 5. Соберите и прошейте:
@@ -137,16 +141,16 @@ make flash
 
 1. Запустите полный цикл тестирования:
 ```bash
-make test
+esp32cam-benchmark
 ```
 
 2. Запустите одиночный тест:
 ```bash
 # Минимальный набор параметров
-python run_tests.py --single-test --video-protocol HTTP --resolution VGA --quality 30
+esp32cam-benchmark --single-test --video-protocol HTTP --resolution VGA --quality 30 --duration 30
 
 # С дополнительными параметрами
-python run_tests.py --single-test \
+esp32cam-benchmark --single-test \
   --video-protocol HTTP \
   --resolution VGA \
   --quality 30 \
@@ -184,7 +188,7 @@ metrics_20231201_120000_vid_HTTP_res_VGA_q30_metrics.json
 
 ### Параметры командной строки
 
-- Обязательные:
+- Обязательные для одиночного теста:
   - `--video-protocol` - протокол видео (HTTP/RTSP/UDP/WebRTC/none)
   - `--resolution` - разрешение (QQVGA/QVGA/VGA/SVGA/XGA/SXGA/UXGA)
   - `--quality` - качество JPEG (10-60)
@@ -196,31 +200,32 @@ metrics_20231201_120000_vid_HTTP_res_VGA_q30_metrics.json
   - `--duration` - длительность теста в секундах
   - `--skip-build` - пропустить сборку и прошивку (для повторных тестов)
 
-### Особенности работы
-
-- Скрипт ожидает инициализацию ESP32-CAM (сообщение "=== ESP32-CAM Initialization ===")
-- Таймаут ожидания IP адреса - 10 секунд
-- Для HTTP стриминга используется endpoint `/video` (не `/stream`)
-- Тестирование протокола управления выполняется только если указан `--control-protocol`
-- Подробные логи о процессе записи видео (FPS, количество кадров)
-
 ## Структура проекта
 
 ```
 ESP32-CAM_BENCHMARK/
-├── firmware/
-│   └── src/
-│       ├── main.cpp              # Основной код
-│       ├── camera.h              # Настройки камеры
-│       ├── config.h              # Конфигурация
-│       ├── video_*.h             # Протоколы видео
-│       └── ctrl_*.h              # Протоколы управления
-├── tests/                        # Тесты
-├── results/                      # Результаты тестов
-├── bench_config.yml             # Конфигурация тестов
-├── platformio.ini               # Конфигурация PlatformIO
-├── requirements.txt             # Python зависимости
-└── Makefile                     # Команды сборки
+├── benchmark/                    # Python пакет
+│   ├── __init__.py              # Основной модуль
+│   ├── benchmark.py             # Класс бенчмарка
+│   ├── cli.py                   # CLI интерфейс
+│   ├── protocols/               # Протоколы
+│   │   ├── video.py            # Видео протоколы
+│   │   └── control.py          # Протоколы управления
+│   └── utils/                   # Утилиты
+│       ├── config.py           # Конфигурация
+│       ├── logging.py          # Логирование
+│       └── serial.py           # Работа с COM-портом
+├── src/                         # Исходники прошивки
+│   ├── main.cpp                # Основной код
+│   ├── camera.h                # Настройки камеры
+│   ├── config.h                # Конфигурация
+│   ├── video_*.h               # Протоколы видео
+│   └── ctrl_*.h                # Протоколы управления
+├── tests/                       # Тесты
+├── results/                     # Результаты тестов
+├── setup.py                    # Установка пакета
+├── platformio.ini              # Конфигурация PlatformIO
+└── Makefile                    # Команды сборки
 ```
 
 ## Команды Make

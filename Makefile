@@ -1,4 +1,4 @@
-.PHONY: all build clean lint format check test flash venv fix
+.PHONY: all build clean lint format check test flash venv fix install install-dev
 
 # Python virtual environment directory
 VENV := .venv
@@ -8,15 +8,23 @@ PIP := $(VENV)/bin/pip
 # Default target
 all: check build
 
-# Create and setup virtual environment
+# Create and setup virtual environment with minimal dependencies
 $(VENV)/bin/activate:
 	python3 -m venv $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
-	$(PIP) install cppcheck cpplint pytest pytest-cov black pylint platformio autopep8 clang-format isort autoflake pyupgrade ruff
+	$(PIP) install -e .
 	mkdir -p results/video results/logs results/metrics
 
-venv: $(VENV)/bin/activate
+# Install package in development mode with all dev dependencies
+install-dev: $(VENV)/bin/activate
+	$(PIP) install -r requirements-dev.txt
+	$(PIP) install -e .
+
+# Basic installation for running benchmarks
+install: $(VENV)/bin/activate
+
+venv: install-dev
 
 # Build firmware
 build: venv
@@ -39,8 +47,8 @@ lint: venv
 	$(VENV)/bin/cpplint --filter=-legal/copyright,-build/include_subdir,-whitespace/newline,-readability/braces \
 		--recursive src/
 	@echo "Running Python checks..."
-	$(VENV)/bin/ruff check run_tests.py tests/
-	$(VENV)/bin/pylint --fail-under=8.0 run_tests.py tests/
+	$(VENV)/bin/ruff check benchmark/ tests/
+	$(VENV)/bin/pylint --fail-under=8.0 benchmark/ tests/
 
 # Check code formatting
 format: venv
@@ -61,7 +69,7 @@ format: venv
 	done
 	@echo "C++ formatting is correct"
 	@echo "Checking Python formatting..."
-	@$(VENV)/bin/black --check run_tests.py tests/
+	@$(VENV)/bin/black --check benchmark/ tests/
 
 # Run all checks without fixing
 check: venv
@@ -75,8 +83,8 @@ check: venv
 	-$(VENV)/bin/cpplint --filter=-legal/copyright,-build/include_subdir \
 		--recursive src/
 	@echo "2. Running Python checks..."
-	-$(VENV)/bin/pylint run_tests.py tests/
-	-$(VENV)/bin/black --check run_tests.py tests/
+	-$(VENV)/bin/pylint benchmark/ tests/
+	-$(VENV)/bin/black --check benchmark/ tests/
 	@echo "3. Running tests..."
 	$(PYTHON) -m pytest tests/ -v
 	@echo "Checks completed. Use 'make fix' to attempt automatic fixes."
@@ -91,21 +99,21 @@ fix: venv
 		src/ 2>cppcheck_errors.txt
 	@echo "2. Fixing Python code..."
 	# Sort imports
-	$(VENV)/bin/isort run_tests.py tests/
+	$(VENV)/bin/isort benchmark/ tests/
 	# Remove unused imports and variables
-	$(VENV)/bin/autoflake --in-place --remove-all-unused-imports --remove-unused-variables run_tests.py tests/*.py
+	$(VENV)/bin/autoflake --in-place --remove-all-unused-imports --remove-unused-variables benchmark/ tests/*.py
 	# Upgrade Python syntax
-	$(VENV)/bin/pyupgrade --py38-plus run_tests.py tests/*.py
+	$(VENV)/bin/pyupgrade --py38-plus benchmark/ tests/*.py
 	# Fix common Python issues with ruff
-	$(VENV)/bin/ruff check --fix run_tests.py tests/
+	$(VENV)/bin/ruff check --fix benchmark/ tests/
 	# Format code
-	$(VENV)/bin/black run_tests.py tests/
-	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive run_tests.py tests/*.py
+	$(VENV)/bin/black benchmark/ tests/
+	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive benchmark/ tests/*.py
 	@echo "3. Running format..."
 	@echo "Formatting C++ code again to ensure consistency..."
 	@find src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
 	@echo "Formatting Python code again to ensure consistency..."
-	@$(VENV)/bin/black run_tests.py tests/
+	@$(VENV)/bin/black benchmark/ tests/
 	@echo "Fix completed. Please review changes and run tests."
 
 # Run tests
@@ -123,8 +131,8 @@ install-system-deps:
 
 # Run Python linting
 pylint: venv
-	$(VENV)/bin/pylint run_tests.py tests/
-	$(VENV)/bin/black --check run_tests.py tests/
+	$(VENV)/bin/pylint benchmark/ tests/
+	$(VENV)/bin/black --check benchmark/ tests/
 
 # Development shell with all tools available
 shell: venv
@@ -132,4 +140,4 @@ shell: venv
 	@echo "Run 'deactivate' to exit"
 	@bash --rcfile $(VENV)/bin/activate
 
-.PHONY: venv install-system-deps shell 
+.PHONY: venv install install-dev install-system-deps shell

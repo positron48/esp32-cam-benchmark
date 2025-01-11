@@ -9,15 +9,15 @@ from unittest.mock import patch
 
 import pytest
 
-from run_tests import ESPCamBenchmark
+from benchmark import ESPCamBenchmark
 
 
 @pytest.fixture
 def benchmark_instance():
     """Create a benchmark instance for testing"""
     # Mock both port and IP functions
-    with patch("run_tests.find_esp_port", return_value="/dev/ttyUSB0"), patch(
-        "run_tests.wait_for_ip", return_value="192.168.1.100"
+    with patch("benchmark.utils.serial.find_esp_port", return_value="/dev/ttyUSB0"), patch(
+        "benchmark.utils.serial.wait_for_ip", return_value="192.168.1.100"
     ):
         return ESPCamBenchmark()
 
@@ -65,9 +65,9 @@ def test_build_parameters(benchmark_instance):
     assert "--raw=0" in cmd
 
 
-@patch("run_tests.cv2")
-@patch("run_tests.serial.Serial")
-@patch("run_tests.wait_for_ip")
+@patch("benchmark.protocols.video.cv2")
+@patch("benchmark.utils.serial.serial.Serial")
+@patch("benchmark.utils.serial.wait_for_ip")
 def test_video_url_generation(
     mock_wait_for_ip, mock_serial, mock_cv2, benchmark_instance
 ):
