@@ -18,34 +18,39 @@ jobs:
       with:
         python-version: '3.9'
     
-    - name: Cache virtualenv
+    - name: Cache pip
       uses: actions/cache@v4
       with:
-        path: |
-          .venv
-          ~/.cache/pip
-        key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements.txt') }}
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
-          ${{ runner.os }}-venv-
+          ${{ runner.os }}-pip-
     
     - name: Install system dependencies
       run: |
         make install-system-deps
     
-    - name: Setup virtual environment
+    - name: Setup virtual environment and install dependencies
       run: |
-        make venv
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install cppcheck cpplint pytest pytest-cov black pylint platformio autopep8 clang-format isort autoflake pyupgrade ruff
     
     - name: Run Python linting
       run: |
+        source .venv/bin/activate
         make pylint
     
     - name: Run C++ linting
       run: |
+        source .venv/bin/activate
         make lint
     
     - name: Check code formatting
       run: |
+        source .venv/bin/activate
         make format
         echo "Checking git diff for non-C++ files:"
         git diff ':!*.h' ':!*.cpp'
@@ -65,6 +70,7 @@ jobs:
     
     - name: Run tests
       run: |
+        source .venv/bin/activate
         make test
     
     # - name: Build firmware
