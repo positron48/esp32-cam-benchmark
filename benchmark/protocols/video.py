@@ -1,4 +1,4 @@
-"""Video protocol functionality for ESP32-CAM benchmark."""
+"""Video protocol functionality for ESP32-CAM benchmark with real-time stretch."""
 
 import json
 import os
@@ -20,7 +20,7 @@ def test_video(
     duration: int,
     logger: Any
 ) -> Dict[str, Any]:
-    """Test video streaming.
+    """Test video streaming with real-time stretch (duplicates frames to preserve real duration).
 
     Args:
         ip_address: Device IP address
@@ -34,18 +34,18 @@ def test_video(
     Returns:
         Dictionary with test results
     """
-    # Add 2 seconds for incomplete first and last seconds
+    # Мы добавляем 2 секунды для неполных первой и последней секунд
     actual_duration = duration + 2
 
     logger.info(
-        "Starting video test: protocol=%s, resolution=%s, quality=%d, raw=%s",
+        "Starting video test (with real-time stretch): protocol=%s, resolution=%s, quality=%d, raw=%s",
         protocol,
         resolution,
         quality,
         raw_mode,
     )
 
-    # Initialize metrics
+    # Инициализируем метрики
     metrics = {
         "connection_time": 0,
         "total_frames": 0,
@@ -54,10 +54,10 @@ def test_video(
         "total_size_mb": 0,
         "bitrate_mbps": 0,
         "test_duration": 0,
-        "frames_per_second": [],  # Frames captured in each second
+        "frames_per_second": [],  # frames captured in each second
     }
 
-    # Construct video URL based on protocol
+    # Формируем URL
     if protocol == "HTTP":
         url = f"http://{ip_address}/video"
     elif protocol == "RTSP":
@@ -69,12 +69,14 @@ def test_video(
     else:
         raise ValueError(f"Unsupported video protocol: {protocol}")
 
-    # Create output directory
+    # Создаём директорию для результатов
     output_dir = Path("results/video")
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f'video_{datetime.now().strftime("%Y%m%d_%H%M%S")}_{protocol}_{resolution}_q{quality}.mp4'
+    output_path = output_dir / (
+        f'video_{datetime.now().strftime("%Y%m%d_%H%M%S")}_{protocol}_{resolution}_q{quality}.mp4'
+    )
 
-    # Open video stream
+    # Открываем поток
     connection_start = time.time()
     logger.info("Opening video stream: %s", url)
     cap = cv2.VideoCapture(url)
@@ -82,36 +84,37 @@ def test_video(
         raise RuntimeError("Failed to open video stream")
     metrics["connection_time"] = time.time() - connection_start
 
-    # Get video properties
+    # Свойства видеопотока
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    logger.info("Video properties: %dx%d @ %d fps", frame_width, frame_height, fps)
+    nominal_fps = 30  # Целевой FPS, в котором мы будем сохранять видео
+    logger.info("Video properties: %dx%d, writing at nominal %d fps", frame_width, frame_height, nominal_fps)
 
-    # Create video writer
+    # Настраиваем VideoWriter
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter(str(output_path), fourcc, fps, (frame_width, frame_height))
+    out = cv2.VideoWriter(str(output_path), fourcc, nominal_fps, (frame_width, frame_height))
 
-    # Initialize metrics
+    # Доп. переменные для метрик
     frames_captured = 0
     failed_reads = 0
     start_time = time.time()
     last_frame_time = start_time
     frame_times = []
-    frames_by_second = {}  # Buffer for frame counting
+    frames_by_second = {}
     first_frame = True
     last_log_second = -1
     last_log_frames = 0
 
-    # Read frames for specified duration
+    # Основной цикл чтения
     while (time.time() - start_time) < actual_duration:
         ret, frame = cap.read()
         current_time = time.time()
         elapsed = current_time - start_time
 
-        # Skip partial first second
+        # Пропускаем неполную первую секунду
         if first_frame:
             first_frame = False
+            last_frame_time = current_time
             continue
 
         if not ret:
@@ -119,42 +122,54 @@ def test_video(
             failed_reads += 1
             continue
 
-        # Track frames per second
+        # Вычисляем dt
+        dt = current_time - last_frame_time
+        last_frame_time = current_time
+
+        # Считаем кадры, пришедшие от ESP
+        frames_captured += 1
+        frame_times.append(dt)
+
         second = int(elapsed)
         if second not in frames_by_second:
             frames_by_second[second] = {"frames": 0, "dropped": 0}
         frames_by_second[second]["frames"] += 1
 
-        frames_captured += 1
-        frame_times.append(current_time - last_frame_time)
-        last_frame_time = current_time
+        # ----------- Логика дублирования -----------
+        ideal_dt = 1.0 / nominal_fps
+        duplicates = int(round(dt / ideal_dt))
+        if duplicates < 1:
+            duplicates = 1
 
-        out.write(frame)
+        for _ in range(duplicates):
+            out.write(frame)
+        # -------------------------------------------
 
-        # Log statistics every second
+        # Логгирование каждые секунду (примерно)
         if second > last_log_second and second > 0:
             frames_this_second = frames_captured - last_log_frames
             avg_fps = frames_captured / elapsed
             logger.info(
-                "Second %d: captured %d frames (avg: %.2f)",
+                "Second %d: captured %d raw frames (avg raw: %.2f fps), dt=%.3fs => duplicates=%d",
                 second,
                 frames_this_second,
                 avg_fps,
+                dt,
+                duplicates
             )
             last_log_second = second
             last_log_frames = frames_captured
 
-    # Clean up
+    # Завершение
     cap.release()
     out.release()
 
-    # Calculate final metrics
     test_duration = time.time() - start_time
     file_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
 
-    # Calculate frame time percentiles
+    # Подсчёт статистики по временам между кадрами
     if frame_times:
-        frame_times_ms = [t * 1000 for t in frame_times]  # Convert to milliseconds
+        frame_times_ms = [t * 1000 for t in frame_times]
         frame_times_ms.sort()
         frame_time_percentiles = {
             "p50": frame_times_ms[len(frame_times_ms) // 2],
@@ -165,7 +180,7 @@ def test_video(
     else:
         frame_time_percentiles = {"p50": 0, "p90": 0, "p95": 0, "p99": 0}
 
-    # Calculate FPS stats only for complete seconds
+    # Собираем FPS-сводку
     complete_seconds_fps = []
     for second in sorted(frames_by_second.keys()):
         if second > 0 and second <= duration:
@@ -176,7 +191,6 @@ def test_video(
                 "dropped": frames_by_second[second]["dropped"],
             })
 
-    # Calculate FPS percentiles
     if complete_seconds_fps:
         complete_seconds_fps.sort(reverse=True)
         fps_percentiles = {
@@ -196,11 +210,13 @@ def test_video(
         "percentiles": fps_percentiles,
     }
 
-    # Update metrics
     metrics.update({
-        "total_frames": frames_captured,
-        "dropped_frames": failed_reads,
-        "avg_fps": len(complete_seconds_fps) > 0 and sum(complete_seconds_fps) / len(complete_seconds_fps) or 0,
+        "total_frames": frames_captured,             # сырые кадры от ESP
+        "dropped_frames": failed_reads,              # не прочитанные (ret=False)
+        "avg_fps": (
+            sum(complete_seconds_fps) / len(complete_seconds_fps)
+            if len(complete_seconds_fps) > 0 else 0
+        ),
         "frame_time_min_ms": min(frame_times) * 1000 if frame_times else 0,
         "frame_time_max_ms": max(frame_times) * 1000 if frame_times else 0,
         "frame_time_percentiles_ms": frame_time_percentiles,
@@ -212,21 +228,15 @@ def test_video(
         "video_file": str(output_path),
     })
 
-    # Log results
     _log_video_metrics(metrics, logger)
     return metrics
 
 
 def _log_video_metrics(metrics: Dict[str, Any], logger: Any) -> None:
-    """Log video capture metrics.
-
-    Args:
-        metrics: Dictionary with metrics
-        logger: Logger instance
-    """
+    """Log video capture metrics."""
     logger.info("Video capture completed. Metrics:")
     logger.info("  Connection time: %.2f seconds", metrics["connection_time"])
-    logger.info("  Total frames: %d", metrics["total_frames"])
+    logger.info("  Total raw frames: %d", metrics["total_frames"])
     logger.info(
         "  Dropped frames: %d (%.1f%%)",
         metrics["dropped_frames"],
@@ -236,19 +246,20 @@ def _log_video_metrics(metrics: Dict[str, Any], logger: Any) -> None:
             else 0
         ),
     )
-    logger.info("  Average FPS: %.2f", metrics["avg_fps"])
+    logger.info("  Average raw FPS (ESP side): %.2f", metrics["avg_fps"])
     logger.info(
-        "  FPS range: %.1f-%.1f (stability: ±%.1f)",
+        "  FPS range (raw): %.1f-%.1f (stability: ±%.1f)",
         metrics["fps_stats"]["min_fps"],
         metrics["fps_stats"]["max_fps"],
         metrics["fps_stats"]["fps_stability"],
     )
-    logger.info("  FPS percentiles (minimum FPS for %% of time):")
+    logger.info("  FPS percentiles (raw frames / second):")
     logger.info("    50%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p50"])
     logger.info("    75%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p75"])
     logger.info("    90%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p90"])
     logger.info("    95%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p95"])
     logger.info("    99%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p99"])
+
     logger.info(
         "  Frame times - min: %.1fms, max: %.1fms",
         metrics["frame_time_min_ms"],
