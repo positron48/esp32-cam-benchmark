@@ -133,10 +133,19 @@ def wait_for_ip(port: str, timeout: int = 30) -> Optional[str]:
 
         start_time = time.time()
         ip_pattern = re.compile(r"http://(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
+        init_found = False
 
         while (time.time() - start_time) < timeout:
             if ser.in_waiting:
                 line = ser.readline().decode("utf-8", errors="ignore")
+                
+                # Wait for initialization message before processing output
+                if not init_found:
+                    if "Initialization" in line:
+                        init_found = True
+                        logging.debug("Found initialization message")
+                    continue
+
                 logging.debug("Serial output: %s", line.strip())
                 match = ip_pattern.search(line)
                 if match:
@@ -240,7 +249,7 @@ class ESPCamBenchmark:
         # Construct video stream URL based on protocol
         stream_url = None
         if self.current_test_params["video_protocol"] == "HTTP":
-            stream_url = f"http://{esp32_ip}:80/stream"
+            stream_url = f"http://{esp32_ip}:80/video"
         elif self.current_test_params["video_protocol"] == "RTSP":
             stream_url = f"rtsp://{esp32_ip}:8554/stream"
         elif self.current_test_params["video_protocol"] == "WebRTC":
@@ -255,10 +264,12 @@ class ESPCamBenchmark:
 
         self.logger.info("Connecting to video stream at %s", stream_url)
         try:
+            self.logger.debug("Opening video capture...")
             cap = cv2.VideoCapture(stream_url)
             if not cap.isOpened():
                 self.logger.error("Failed to open video stream")
                 raise RuntimeError("Failed to open video stream")
+            self.logger.info("Successfully connected to video stream")
         except Exception as e:
             self.logger.error("Error opening video stream: %s", str(e))
             raise RuntimeError(f"Error opening video stream: {str(e)}") from e
@@ -267,21 +278,31 @@ class ESPCamBenchmark:
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = int(cap.get(cv2.CAP_PROP_FPS))
+        self.logger.info("Video properties: %dx%d @ %d fps", frame_width, frame_height, fps)
 
         # Create video writer
+        self.logger.debug("Initializing video writer...")
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+        self.logger.info("Video writer initialized")
 
+        frames_captured = 0
         start_time = time.time()
         while (time.time() - start_time) < duration:
             ret, frame = cap.read()
             if not ret:
+                self.logger.error("Failed to read frame at %.2f seconds", time.time() - start_time)
                 break
             out.write(frame)
+            frames_captured += 1
+            if frames_captured % 30 == 0:  # Log every 30 frames
+                elapsed = time.time() - start_time
+                self.logger.info("Captured %d frames in %.2f seconds (%.2f fps)", 
+                               frames_captured, elapsed, frames_captured/elapsed)
 
         cap.release()
         out.release()
-        self.logger.info("Video capture completed")
+        self.logger.info("Video capture completed. Total frames: %d", frames_captured)
 
     def test_control(self, duration: int) -> Dict[str, Any]:
         """Test control commands"""
@@ -327,7 +348,7 @@ class ESPCamBenchmark:
 
         return results
 
-    def run_test_combination(self, test_params: Dict[str, Any]) -> Dict[str, Any]:
+    def run_test_combination(self, test_params: Dict[str, Any], skip_build: bool = False) -> Dict[str, Any]:
         """Run a single test combination"""
         self.logger.info("Starting test with parameters: %s", test_params)
         self.current_test_params = test_params
@@ -340,12 +361,15 @@ class ESPCamBenchmark:
         }
 
         try:
-            # Build firmware
-            self.build_firmware(test_params)
+            if not skip_build:
+                # Build firmware
+                self.build_firmware(test_params)
 
-            # Flash firmware
-            self.logger.info("Flashing firmware to ESP32-CAM...")
-            flash_firmware(self.port)
+                # Flash firmware
+                self.logger.info("Flashing firmware to ESP32-CAM...")
+                flash_firmware(self.port)
+            else:
+                self.logger.info("Skipping firmware build and flash as requested")
 
             # Wait for device to boot and get IP
             self.logger.info("Waiting for device to boot and get IP...")
@@ -376,11 +400,14 @@ class ESPCamBenchmark:
                     "quality": test_params["quality"],
                 }
 
-            # Run control test if enabled
+            # Run control test only if control protocol is specified
             if test_params.get("control_protocol"):
+                self.logger.info("Starting control protocol test...")
                 results["control_metrics"] = self.test_control(
                     self.config["test_duration"]
                 )
+            else:
+                self.logger.info("Skipping control protocol test (not specified)")
 
             self.logger.info("Test completed successfully")
 
@@ -489,6 +516,11 @@ def parse_args():
     )
     parser.add_argument("--raw-mode", action="store_true", help="Enable raw mode")
     parser.add_argument("--duration", type=int, help="Test duration in seconds")
+    parser.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Skip firmware build and flash, only run tests",
+    )
     return parser.parse_args()
 
 
@@ -497,13 +529,11 @@ if __name__ == "__main__":
     benchmark = ESPCamBenchmark()
 
     if args.single_test:
-        if not all(
-            [args.video_protocol, args.control_protocol, args.resolution, args.quality]
-        ):
-            print(
-                "Error: When running a single test, you must specify all test parameters:"
-            )
-            print("  --video-protocol, --control-protocol, --resolution, --quality")
+        if not all([args.video_protocol, args.resolution, args.quality]):
+            print("Error: When running a single test, you must specify parameters:")
+            print("  --video-protocol, --resolution, --quality")
+            print("Optional parameters:")
+            print("  --control-protocol, --metrics, --raw-mode, --duration, --skip-build")
             sys.exit(1)
 
         test_params = {
@@ -525,7 +555,7 @@ if __name__ == "__main__":
         print(
             f"Running single test with parameters: {json.dumps(test_params, indent=2)}"
         )
-        results = benchmark.run_test_combination(test_params)
+        results = benchmark.run_test_combination(test_params, skip_build=args.skip_build)
         print(f"Test results: {json.dumps(results, indent=2)}")
     else:
         results = benchmark.run_all_tests()

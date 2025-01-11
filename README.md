@@ -140,10 +140,47 @@ make flash
 make test
 ```
 
-2. Результаты будут сохранены в:
+2. Запустите одиночный тест:
+```bash
+# Минимальный набор параметров
+python run_tests.py --single-test --video-protocol HTTP --resolution VGA --quality 30
+
+# С дополнительными параметрами
+python run_tests.py --single-test \
+  --video-protocol HTTP \
+  --resolution VGA \
+  --quality 30 \
+  --control-protocol UDP \  # опционально
+  --duration 60 \          # опционально
+  --skip-build            # пропустить сборку прошивки
+```
+
+3. Результаты будут сохранены в:
 - `results/video/` - записи видеопотока
 - `results/logs/` - логи работы
 - `results/metrics/` - метрики производительности
+
+### Параметры командной строки
+
+- Обязательные:
+  - `--video-protocol` - протокол видео (HTTP/RTSP/UDP/WebRTC/none)
+  - `--resolution` - разрешение (QQVGA/QVGA/VGA/SVGA/XGA/SXGA/UXGA)
+  - `--quality` - качество JPEG (10-60)
+
+- Опциональные:
+  - `--control-protocol` - протокол управления (HTTP/UDP/WebSocket/none)
+  - `--metrics` - включить сбор метрик
+  - `--raw-mode` - включить RAW режим
+  - `--duration` - длительность теста в секундах
+  - `--skip-build` - пропустить сборку и прошивку (для повторных тестов)
+
+### Особенности работы
+
+- Скрипт ожидает инициализацию ESP32-CAM (сообщение "=== ESP32-CAM Initialization ===")
+- Таймаут ожидания IP адреса - 10 секунд
+- Для HTTP стриминга используется endpoint `/video` (не `/stream`)
+- Тестирование протокола управления выполняется только если указан `--control-protocol`
+- Подробные логи о процессе записи видео (FPS, количество кадров)
 
 ## Структура проекта
 
