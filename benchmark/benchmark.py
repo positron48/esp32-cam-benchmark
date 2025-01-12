@@ -3,8 +3,11 @@
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Any, Dict, List
+
+import cv2
 
 from .protocols import control, video
 from .utils import config, logging, serial
@@ -19,6 +22,7 @@ class ESPCamBenchmark:
         self.config = config.load_config("bench_config.yml")
         self.results_dir = Path("results")
         self.results_dir.mkdir(parents=True, exist_ok=True)
+        self.current_test_params = None
 
     def run_test_combination(
         self, test_params: Dict[str, Any], skip_build: bool = False
@@ -200,3 +204,125 @@ class ESPCamBenchmark:
                                 }
                             )
         return combinations
+
+    def build_firmware(
+        self, test_params: Dict[str, Any], dry_run: bool = False
+    ) -> List[str]:
+        """Build firmware with specified parameters.
+
+        Args:
+            test_params: Dictionary with test parameters
+            dry_run: If True, return command that would be executed
+
+        Returns:
+            Command that would be executed if dry_run is True
+        """
+        build_flags = []
+        if test_params.get("video_protocol"):
+            build_flags.append(f"--video={test_params['video_protocol']}")
+        if test_params.get("control_protocol"):
+            build_flags.append(f"--control={test_params['control_protocol']}")
+        if test_params.get("resolution"):
+            build_flags.append(f"--resolution={test_params['resolution']}")
+        if test_params.get("quality"):
+            build_flags.append(f"--quality={test_params['quality']}")
+        build_flags.append(f"--metrics={1 if test_params.get('metrics') else 0}")
+        build_flags.append(f"--raw={1 if test_params.get('raw_mode') else 0}")
+
+        build_env = (
+            "esp32cam_with_metrics" if test_params.get("metrics") else "esp32cam"
+        )
+        cmd = ["pio", "run", "-e", build_env]
+        if not dry_run:
+            cmd.extend(["-t", "upload"])
+        cmd.extend(build_flags)
+
+        if build_flags:
+            os.environ["PLATFORMIO_BUILD_FLAGS"] = " ".join(build_flags)
+
+        return cmd
+
+    def test_control(self, duration: int) -> Dict[str, Any]:
+        """Run control protocol test.
+
+        Args:
+            duration: Test duration in seconds
+
+        Returns:
+            Dictionary with test results
+        """
+        if not hasattr(self, "current_test_params"):
+            raise RuntimeError("No test parameters set")
+
+        port = serial.find_esp_port()
+        if not port:
+            raise RuntimeError("ESP32-CAM not found")
+
+        ip_address = serial.wait_for_ip(port)
+        if not ip_address:
+            raise RuntimeError("Failed to get device IP address")
+
+        return control.test_control(
+            ip_address,
+            self.current_test_params["control_protocol"],
+            duration,
+            self.logger,
+        )
+
+    def capture_video(self, duration: int, output_file: str) -> None:
+        """Capture video from the device.
+
+        Args:
+            duration: Duration to capture in seconds
+            output_file: Output file path
+        """
+        if not hasattr(self, "current_test_params"):
+            raise RuntimeError("No test parameters set")
+
+        port = serial.find_esp_port()
+        if not port:
+            raise RuntimeError("ESP32-CAM not found")
+
+        ip_address = serial.wait_for_ip(port)
+        if not ip_address:
+            raise RuntimeError("Failed to get device IP address")
+
+        # Construct video URL based on protocol
+        if self.current_test_params["video_protocol"] == "HTTP":
+            url = f"http://{ip_address}/video"
+        elif self.current_test_params["video_protocol"] == "RTSP":
+            url = f"rtsp://{ip_address}:8554/stream"
+        elif self.current_test_params["video_protocol"] == "UDP":
+            url = f"udp://{ip_address}:5000"
+        elif self.current_test_params["video_protocol"] == "WebRTC":
+            raise NotImplementedError("WebRTC video capture not implemented yet")
+        else:
+            raise ValueError(
+                f"Unsupported video protocol: {self.current_test_params['video_protocol']}"
+            )
+
+        # Open video capture
+        cap = cv2.VideoCapture(url)
+        if not cap.isOpened():
+            raise RuntimeError("Failed to open video stream")
+
+        # Get video properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+        # Create video writer
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        out = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
+
+        # Capture frames
+        start_time = time.time()
+        while (time.time() - start_time) < duration:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            out.write(frame)
+
+        # Release resources
+        cap.release()
+        out.release()

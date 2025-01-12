@@ -1,14 +1,7 @@
 #include <Arduino.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
-
-// Core system headers
-#include "esp_system.h"
-
-#if ENABLE_METRICS
-// Headers for metrics collection
-#include "esp_system.h"
-#endif
+#include <esp_system.h>
 
 #include "camera.h"
 #include "config.h"

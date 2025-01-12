@@ -60,7 +60,7 @@ def test_video(
     if protocol == "HTTP":
         url = f"http://{ip_address}/video"
     elif protocol == "RTSP":
-        url = f"rtsp://{ip_address}:8554/video"
+        url = f"rtsp://{ip_address}:8554/stream"
     elif protocol == "UDP":
         url = f"udp://{ip_address}:5000"
     elif protocol == "WebRTC":
@@ -143,9 +143,7 @@ def test_video(
 
         # ----------- Логика дублирования -----------
         ideal_dt = 1.0 / nominal_fps
-        duplicates = int(round(dt / ideal_dt))
-        if duplicates < 1:
-            duplicates = 1
+        duplicates = max(int(round(dt / ideal_dt)), 1)
 
         for _ in range(duplicates):
             out.write(frame)
@@ -188,7 +186,7 @@ def test_video(
     # Собираем FPS-сводку
     complete_seconds_fps = []
     for second in sorted(frames_by_second.keys()):
-        if second > 0 and second <= duration:
+        if 0 < second <= duration:
             complete_seconds_fps.append(frames_by_second[second]["frames"])
             metrics["frames_per_second"].append(
                 {

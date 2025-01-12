@@ -1,13 +1,30 @@
 # Общие параметры тестирования
 test_duration: 30  # длительность каждого теста в секундах
 
+# Поддерживаемые протоколы
+video_protocols:
+  - HTTP
+  - RTSP
+  - UDP
+  - WebRTC
+
+control_protocols:
+  - HTTP
+  - UDP
+  - WebSocket
+
+# Параметры камеры
+camera_resolutions:
+  QQVGA: [160, 120]
+  QVGA: [320, 240]
+  VGA: [640, 480]
+  SVGA: [800, 600]
+  XGA: [1024, 768]
+  SXGA: [1280, 1024]
+  UXGA: [1600, 1200]
+
 # Параметры для полного цикла тестирования
 test_combinations:
-  video_protocols:
-    - HTTP
-    - RTSP
-    - UDP
-    - WebRTC
   control_protocols:
     - HTTP
     - UDP

@@ -65,7 +65,7 @@ def test_build_parameters(benchmark_instance):
     assert "--raw=0" in cmd
 
 
-@patch("benchmark.protocols.video.cv2")
+@patch("benchmark.benchmark.cv2")
 @patch("benchmark.utils.serial.serial.Serial")
 @patch("benchmark.utils.serial.wait_for_ip")
 def test_video_url_generation(
@@ -86,13 +86,18 @@ def test_video_url_generation(
     mock_cv2.CAP_PROP_FRAME_WIDTH = 3
     mock_cv2.CAP_PROP_FRAME_HEIGHT = 4
     mock_cv2.CAP_PROP_FPS = 5
+    # Mock read() to return a frame
+    mock_cv2.VideoCapture.return_value.read.return_value = (
+        True,
+        mock_cv2.imread("test.jpg"),
+    )
 
     # Test HTTP URL
     with suppress(Exception):  # We expect an error when actually trying to capture
         benchmark_instance.capture_video(1, "test.mp4")
     mock_cv2.VideoCapture.assert_called_once()
     args = mock_cv2.VideoCapture.call_args[0]
-    assert args[0] == f"http://{expected_ip}:80/video"
+    assert args[0] == f"http://{expected_ip}/video"
 
     # Test RTSP URL
     mock_cv2.VideoCapture.reset_mock()

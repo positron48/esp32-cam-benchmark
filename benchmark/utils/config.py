@@ -1,6 +1,7 @@
 """Configuration utilities for ESP32-CAM benchmark."""
 
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
@@ -44,8 +45,6 @@ def generate_file_name(
     Returns:
         Formatted file name with parameters
     """
-    from datetime import datetime
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     params = []
 
