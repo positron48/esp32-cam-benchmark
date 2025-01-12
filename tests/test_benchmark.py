@@ -68,8 +68,9 @@ def test_build_parameters(benchmark_instance):
 @patch("benchmark.benchmark.cv2")
 @patch("benchmark.utils.serial.serial.Serial")
 @patch("benchmark.utils.serial.wait_for_ip")
+@patch("benchmark.utils.serial.find_esp_port")
 def test_video_url_generation(
-    mock_wait_for_ip, mock_serial, mock_cv2, benchmark_instance
+    mock_find_esp_port, mock_wait_for_ip, mock_serial, mock_cv2, benchmark_instance
 ):
     """Test that video stream URLs are correctly generated"""
     # Create a mock frame
@@ -81,6 +82,7 @@ def test_video_url_generation(
     # IP address should be obtained from wait_for_ip mock
     expected_ip = "192.168.1.100"  # This matches the mock in benchmark_instance fixture
     mock_wait_for_ip.return_value = expected_ip
+    mock_find_esp_port.return_value = "/dev/ttyUSB0"
     benchmark_instance.config["wifi"]["device_ip"] = expected_ip
 
     # Configure mock
