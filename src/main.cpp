@@ -22,8 +22,7 @@ AsyncWebServer server(80);
 #if ENABLE_METRICS
     // Function to read internal temperature
     float readInternalTemperature() {
-        // ESP32's internal temperature sensor reading
-        return (temperatureRead() - 32.0) / 1.8; // Convert from Fahrenheit to Celsius
+        return temperatureRead();
     }
 
     // Function to print task statistics
@@ -85,7 +84,11 @@ void setup() {
     config.pin_pwdn     = PWDN_GPIO_NUM;
     config.pin_reset    = RESET_GPIO_NUM;
     config.xclk_freq_hz = 20000000;
-    config.pixel_format = PIXFORMAT_JPEG;
+#if RAW_MODE
+    config.pixel_format = PIXFORMAT_RGB565;  // Raw format for raw mode
+#else
+    config.pixel_format = PIXFORMAT_JPEG;    // JPEG format for normal mode
+#endif
     config.frame_size   = CONCAT(FRAMESIZE_, CAMERA_RESOLUTION);
     config.jpeg_quality = JPEG_QUALITY;
     config.fb_count     = 2;
@@ -93,6 +96,7 @@ void setup() {
     Serial.println("Camera configuration:");
     Serial.printf("- XCLK Frequency: %d Hz\n", config.xclk_freq_hz);
     Serial.printf("- Frame Size: %d\n", config.frame_size);
+    Serial.printf("- Pixel Format: %s\n", RAW_MODE ? "RAW RGB565" : "JPEG");
     Serial.printf("- JPEG Quality: %d\n", config.jpeg_quality);
     Serial.printf("- FB Count: %d\n", config.fb_count);
 
@@ -141,6 +145,10 @@ void loop() {
     handleVideoHTTP();
 
 #if ENABLE_METRICS
+
+    // Print task statistics
+    printTaskStats();
+
     static uint32_t lastLog = 0;
     // Log status every second
     if (millis() - lastLog > 1000) {
@@ -149,8 +157,6 @@ void loop() {
             "Status: WiFi RSSI=%d dBm, Free heap=%d bytes, Temperature=%.2f °C\n", 
             WiFi.RSSI(), ESP.getFreeHeap(), temperature);
             
-        // Print task statistics
-        printTaskStats();
         
         lastLog = millis();
     }

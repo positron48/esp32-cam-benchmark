@@ -32,6 +32,10 @@ class ESPCamBenchmark:
         Returns:
             Dictionary with test results
         """
+        # Validate test parameters
+        if test_params.get("raw_mode") and test_params.get("video_protocol") == "HTTP":
+            raise ValueError("HTTP protocol is not supported in RAW mode. Please use a different video protocol or disable RAW mode.")
+
         self.logger.info("Starting test with parameters: %s", test_params)
         results = {}
 
@@ -128,8 +132,7 @@ class ESPCamBenchmark:
                     build_flags.append(f"-DJPEG_QUALITY={self.current_test_params['quality']}")
                 # Always set ENABLE_METRICS based on test_params
                 build_flags.append(f"-DENABLE_METRICS={1 if self.current_test_params.get('metrics') else 0}")
-                if self.current_test_params.get("raw_mode"):
-                    build_flags.append("-DRAW_MODE=1")
+                build_flags.append(f"-DRAW_MODE={1 if self.current_test_params.get('raw_mode') else 0}")
             
             # Set environment variable with build flags
             env = os.environ.copy()
@@ -166,11 +169,17 @@ class ESPCamBenchmark:
             for resolution in cfg["resolutions"]:
                 for quality in cfg["qualities"]:
                     for ctrl_protocol in cfg["control_protocols"]:
-                        combinations.append({
-                            "video_protocol": protocol,
-                            "resolution": resolution,
-                            "quality": quality,
-                            "control_protocol": ctrl_protocol,
-                            "metrics": True
-                        })
+                        for raw_mode in [True, False]:
+                            # Skip HTTP protocol in RAW mode
+                            if raw_mode and protocol == "HTTP":
+                                continue
+                                
+                            combinations.append({
+                                "video_protocol": protocol,
+                                "resolution": resolution,
+                                "quality": quality,
+                                "control_protocol": ctrl_protocol,
+                                "metrics": True,
+                                "raw_mode": raw_mode
+                            })
         return combinations

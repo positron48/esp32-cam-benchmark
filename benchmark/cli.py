@@ -80,12 +80,26 @@ def main():
         print(
             f"Running single test with parameters: {json.dumps(test_params, indent=2)}"
         )
-        results = benchmark.run_test_combination(
-            test_params, skip_build=args.skip_build
-        )
-        print(f"Test results: {json.dumps(results, indent=2)}")
+        try:
+            results = benchmark.run_test_combination(
+                test_params, skip_build=args.skip_build
+            )
+            print(f"Test results: {json.dumps(results, indent=2)}")
+        except ValueError as e:
+            print(f"\nError: {str(e)}")
+            sys.exit(1)
+        except RuntimeError as e:
+            print(f"\nError: {str(e)}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"\nUnexpected error: {str(e)}")
+            sys.exit(1)
     else:
-        results = benchmark.run_all_tests()
+        try:
+            results = benchmark.run_all_tests()
+        except Exception as e:
+            print(f"\nError: {str(e)}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
