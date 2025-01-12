@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
+import os
 
 from .protocols import control, video
 from .utils import config, logging, serial
@@ -33,6 +34,9 @@ class ESPCamBenchmark:
         """
         self.logger.info("Starting test with parameters: %s", test_params)
         results = {}
+
+        # Store current test parameters for build
+        self.current_test_params = test_params
 
         if not skip_build:
             self._build_and_flash()
@@ -98,19 +102,39 @@ class ESPCamBenchmark:
         """Build and flash firmware."""
         self.logger.info("Building firmware...")
         try:
-            subprocess.run(["pio", "run"], check=True)
+            # Prepare build flags based on current test parameters
+            build_flags = []
+            if hasattr(self, 'current_test_params'):
+                if self.current_test_params.get("video_protocol"):
+                    build_flags.append(f"-DVIDEO_PROTOCOL={self.current_test_params['video_protocol']}")
+                if self.current_test_params.get("control_protocol"):
+                    build_flags.append(f"-DCONTROL_PROTOCOL={self.current_test_params['control_protocol']}")
+                if self.current_test_params.get("resolution"):
+                    build_flags.append(f"-DCAMERA_RESOLUTION={self.current_test_params['resolution']}")
+                if self.current_test_params.get("quality"):
+                    build_flags.append(f"-DJPEG_QUALITY={self.current_test_params['quality']}")
+                if self.current_test_params.get("metrics"):
+                    build_flags.append("-DENABLE_METRICS=1")
+                if self.current_test_params.get("raw_mode"):
+                    build_flags.append("-DRAW_MODE=1")
+            
+            # Set environment variable with build flags
+            env = os.environ.copy()
+            if build_flags:
+                env["PLATFORMIO_BUILD_FLAGS"] = " ".join(build_flags)
+                self.logger.info("Build flags: %s", env["PLATFORMIO_BUILD_FLAGS"])
+
+            # Find ESP32 port
+            port = serial.find_esp_port()
+            if not port:
+                raise RuntimeError("ESP32-CAM not found")
+
+            # Build and upload in one command
+            self.logger.info("Building and flashing firmware...")
+            subprocess.run(["pio", "run", "-t", "upload", "--upload-port", port], env=env, check=True)
+            
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to build firmware: {e}") from e
-
-        self.logger.info("Flashing firmware...")
-        port = serial.find_esp_port()
-        if not port:
-            raise RuntimeError("ESP32-CAM not found")
-
-        try:
-            serial.flash_firmware(port)
-        except Exception as e:
-            raise RuntimeError(f"Failed to flash firmware: {e}") from e
+            raise RuntimeError(f"Failed to build/flash firmware: {e}") from e
 
     def _generate_test_combinations(self) -> List[Dict[str, Any]]:
         """Generate all test combinations from config.

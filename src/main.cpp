@@ -17,8 +17,11 @@ void setup() {
     Serial.println("\n=== ESP32-CAM Initialization ===");
 
 // Convert defines to strings for better logging
-#define XSTR(x) STR(x)
+#define XSTR(x)  STR(x)
 #define STR(x)  #x
+
+#define _CONCAT(a, b) a##b
+#define CONCAT(a, b) _CONCAT(a, b)
 
     Serial.printf("- Video Protocol: %s\n", XSTR(VIDEO_PROTOCOL));
     Serial.printf("- Control Protocol: %s\n", XSTR(CONTROL_PROTOCOL));
@@ -50,7 +53,7 @@ void setup() {
     config.pin_reset    = RESET_GPIO_NUM;
     config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_JPEG;
-    config.frame_size   = FRAMESIZE_VGA;
+    config.frame_size   = CONCAT(FRAMESIZE_, CAMERA_RESOLUTION);
     config.jpeg_quality = JPEG_QUALITY;
     config.fb_count     = 2;
 

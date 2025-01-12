@@ -31,7 +31,7 @@ def parse_args():
         help="Camera resolution",
     )
     parser.add_argument(
-        "--quality", type=int, choices=range(10, 61, 10), help="JPEG quality (10-60)"
+        "--quality", type=int, choices=range(3, 61), help="JPEG quality (1-61)"
     )
     parser.add_argument(
         "--metrics", action="store_true", help="Enable metrics collection"
