@@ -36,7 +36,7 @@ void handleWebRTCMessage(uint8_t num, uint8_t* payload, size_t length) {
                 String sdp = doc["sdp"];
                 // Process SDP offer and generate answer
                 // This is a simplified implementation
-                webrtcState = CONNECTED;
+                webrtcState   = CONNECTED;
                 currentClient = num;
             }
         }

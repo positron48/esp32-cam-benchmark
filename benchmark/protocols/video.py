@@ -1,6 +1,5 @@
 """Video protocol functionality for ESP32-CAM benchmark with real-time stretch."""
 
-import json
 import os
 import statistics
 import time
@@ -18,7 +17,7 @@ def test_video(
     quality: int,
     raw_mode: bool,
     duration: int,
-    logger: Any
+    logger: Any,
 ) -> Dict[str, Any]:
     """Test video streaming with real-time stretch (duplicates frames to preserve real duration).
 
@@ -88,11 +87,18 @@ def test_video(
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     nominal_fps = 30  # Целевой FPS, в котором мы будем сохранять видео
-    logger.info("Video properties: %dx%d, writing at nominal %d fps", frame_width, frame_height, nominal_fps)
+    logger.info(
+        "Video properties: %dx%d, writing at nominal %d fps",
+        frame_width,
+        frame_height,
+        nominal_fps,
+    )
 
     # Настраиваем VideoWriter
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter(str(output_path), fourcc, nominal_fps, (frame_width, frame_height))
+    out = cv2.VideoWriter(
+        str(output_path), fourcc, nominal_fps, (frame_width, frame_height)
+    )
 
     # Доп. переменные для метрик
     frames_captured = 0
@@ -155,7 +161,7 @@ def test_video(
                 frames_this_second,
                 avg_fps,
                 dt,
-                duplicates
+                duplicates,
             )
             last_log_second = second
             last_log_frames = frames_captured
@@ -185,11 +191,13 @@ def test_video(
     for second in sorted(frames_by_second.keys()):
         if second > 0 and second <= duration:
             complete_seconds_fps.append(frames_by_second[second]["frames"])
-            metrics["frames_per_second"].append({
-                "second": second,
-                "frames": frames_by_second[second]["frames"],
-                "dropped": frames_by_second[second]["dropped"],
-            })
+            metrics["frames_per_second"].append(
+                {
+                    "second": second,
+                    "frames": frames_by_second[second]["frames"],
+                    "dropped": frames_by_second[second]["dropped"],
+                }
+            )
 
     if complete_seconds_fps:
         complete_seconds_fps.sort(reverse=True)
@@ -206,27 +214,34 @@ def test_video(
     fps_stats = {
         "min_fps": min(complete_seconds_fps) if complete_seconds_fps else 0,
         "max_fps": max(complete_seconds_fps) if complete_seconds_fps else 0,
-        "fps_stability": round(statistics.stdev(complete_seconds_fps), 2) if len(complete_seconds_fps) > 1 else 0,
+        "fps_stability": round(statistics.stdev(complete_seconds_fps), 2)
+        if len(complete_seconds_fps) > 1
+        else 0,
         "percentiles": fps_percentiles,
     }
 
-    metrics.update({
-        "total_frames": frames_captured,             # сырые кадры от ESP
-        "dropped_frames": failed_reads,              # не прочитанные (ret=False)
-        "avg_fps": (
-            sum(complete_seconds_fps) / len(complete_seconds_fps)
-            if len(complete_seconds_fps) > 0 else 0
-        ),
-        "frame_time_min_ms": min(frame_times) * 1000 if frame_times else 0,
-        "frame_time_max_ms": max(frame_times) * 1000 if frame_times else 0,
-        "frame_time_percentiles_ms": frame_time_percentiles,
-        "total_size_mb": file_size / (1024 * 1024),
-        "bitrate_mbps": (file_size * 8) / (test_duration * 1024 * 1024) if test_duration > 0 else 0,
-        "test_duration": test_duration,
-        "analyzed_duration": duration,
-        "fps_stats": fps_stats,
-        "video_file": str(output_path),
-    })
+    metrics.update(
+        {
+            "total_frames": frames_captured,  # сырые кадры от ESP
+            "dropped_frames": failed_reads,  # не прочитанные (ret=False)
+            "avg_fps": (
+                sum(complete_seconds_fps) / len(complete_seconds_fps)
+                if len(complete_seconds_fps) > 0
+                else 0
+            ),
+            "frame_time_min_ms": min(frame_times) * 1000 if frame_times else 0,
+            "frame_time_max_ms": max(frame_times) * 1000 if frame_times else 0,
+            "frame_time_percentiles_ms": frame_time_percentiles,
+            "total_size_mb": file_size / (1024 * 1024),
+            "bitrate_mbps": (file_size * 8) / (test_duration * 1024 * 1024)
+            if test_duration > 0
+            else 0,
+            "test_duration": test_duration,
+            "analyzed_duration": duration,
+            "fps_stats": fps_stats,
+            "video_file": str(output_path),
+        }
+    )
 
     _log_video_metrics(metrics, logger)
     return metrics
@@ -241,7 +256,11 @@ def _log_video_metrics(metrics: Dict[str, Any], logger: Any) -> None:
         "  Dropped frames: %d (%.1f%%)",
         metrics["dropped_frames"],
         (
-            (metrics["dropped_frames"] / (metrics["total_frames"] + metrics["dropped_frames"]) * 100)
+            (
+                metrics["dropped_frames"]
+                / (metrics["total_frames"] + metrics["dropped_frames"])
+                * 100
+            )
             if metrics["total_frames"] > 0
             else 0
         ),
@@ -254,11 +273,21 @@ def _log_video_metrics(metrics: Dict[str, Any], logger: Any) -> None:
         metrics["fps_stats"]["fps_stability"],
     )
     logger.info("  FPS percentiles (raw frames / second):")
-    logger.info("    50%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p50"])
-    logger.info("    75%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p75"])
-    logger.info("    90%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p90"])
-    logger.info("    95%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p95"])
-    logger.info("    99%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p99"])
+    logger.info(
+        "    50%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p50"]
+    )
+    logger.info(
+        "    75%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p75"]
+    )
+    logger.info(
+        "    90%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p90"]
+    )
+    logger.info(
+        "    95%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p95"]
+    )
+    logger.info(
+        "    99%% of time: ≥%.1f fps", metrics["fps_stats"]["percentiles"]["p99"]
+    )
 
     logger.info(
         "  Frame times - min: %.1fms, max: %.1fms",

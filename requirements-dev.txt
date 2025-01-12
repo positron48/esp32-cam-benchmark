@@ -9,5 +9,5 @@ isort==5.12.0
 autoflake==2.2.1
 pyupgrade==3.15.0
 ruff==0.1.6
-cppcheck==2.12.0
+cppcheck==1.4.7
 cpplint==1.6.1

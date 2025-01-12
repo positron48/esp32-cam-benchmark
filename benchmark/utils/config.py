@@ -31,7 +31,9 @@ def load_config(config_file: str) -> Dict[str, Any]:
         return yaml.safe_load(content)
 
 
-def generate_file_name(test_params: Dict[str, Any], file_type: str, extension: str) -> str:
+def generate_file_name(
+    test_params: Dict[str, Any], file_type: str, extension: str
+) -> str:
     """Generate a standardized file name with all relevant parameters.
 
     Args:

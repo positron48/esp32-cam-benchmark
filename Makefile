@@ -101,9 +101,9 @@ fix: venv
 	# Sort imports
 	$(VENV)/bin/isort benchmark/ tests/
 	# Remove unused imports and variables
-	$(VENV)/bin/autoflake --in-place --remove-all-unused-imports --remove-unused-variables benchmark/ tests/*.py
+	find benchmark/ tests/ -name "*.py" -type f -exec $(VENV)/bin/autoflake --in-place --remove-all-unused-imports --remove-unused-variables {} +
 	# Upgrade Python syntax
-	$(VENV)/bin/pyupgrade --py38-plus benchmark/ tests/*.py
+	find benchmark/ tests/ -name "*.py" -type f -exec $(VENV)/bin/pyupgrade --py38-plus {} +
 	# Fix common Python issues with ruff
 	$(VENV)/bin/ruff check --fix benchmark/ tests/
 	# Format code

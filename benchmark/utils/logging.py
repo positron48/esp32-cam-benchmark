@@ -8,7 +8,7 @@ from pathlib import Path
 
 def setup_logging() -> logging.Logger:
     """Setup logging configuration.
-    
+
     Returns:
         Logger instance configured for the benchmark
     """

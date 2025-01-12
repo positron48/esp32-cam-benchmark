@@ -12,13 +12,13 @@ import pytest
 from benchmark import ESPCamBenchmark
 
 
-@pytest.fixture
+@pytest.fixture()
 def benchmark_instance():
     """Create a benchmark instance for testing"""
     # Mock both port and IP functions
-    with patch("benchmark.utils.serial.find_esp_port", return_value="/dev/ttyUSB0"), patch(
-        "benchmark.utils.serial.wait_for_ip", return_value="192.168.1.100"
-    ):
+    with patch(
+        "benchmark.utils.serial.find_esp_port", return_value="/dev/ttyUSB0"
+    ), patch("benchmark.utils.serial.wait_for_ip", return_value="192.168.1.100"):
         return ESPCamBenchmark()
 
 

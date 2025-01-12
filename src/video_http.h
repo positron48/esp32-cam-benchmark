@@ -45,14 +45,14 @@ void initVideoHTTP() {
             String("multipart/x-mixed-replace;boundary=") + BOUNDARY,
             [=](uint8_t* buffer, size_t maxLen, size_t index) -> size_t {
                 // Статические переменные для хранения контекста между вызовами:
-                static camera_fb_t* fb         = nullptr;
-                static size_t       offset     = 0;     // сколько уже отправили байт из fb->buf
-                static bool         needHeader = true;  // надо ли сформировать новый заголовок?
-                static int          failCount  = 0;
+                static camera_fb_t* fb = nullptr;
+                static size_t offset = 0;  // сколько уже отправили байт из fb->buf
+                static bool needHeader = true;  // надо ли сформировать новый заголовок?
+                static int failCount = 0;
 
                 // -- Поля для "частичной" отправки заголовка:
-                static char   headerBuf[128];  // буфер, куда сформируем заголовок
-                static size_t headerLen  = 0;  // фактическая длина заголовка
+                static char headerBuf[128];  // буфер, куда сформируем заголовок
+                static size_t headerLen = 0;  // фактическая длина заголовка
                 static size_t headerSent = 0;  // сколько байт заголовка уже отправили
 
                 // 1) Если нет текущего кадра, берём новый
@@ -60,8 +60,7 @@ void initVideoHTTP() {
                     fb = esp_camera_fb_get();
                     if (!fb) {
                         failCount++;
-                        VIDEO_LOG("[video_http] Camera capture failed, failCount=%d\n",
-                                      failCount);
+                        VIDEO_LOG("[video_http] Camera capture failed, failCount=%d\n", failCount);
                         if (failCount > 5) {
                             vTaskDelay(pdMS_TO_TICKS(100));  // небольшая задержка, если нет кадров
                             failCount = 0;

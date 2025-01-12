@@ -1,18 +1,14 @@
 """Control protocol functionality for ESP32-CAM benchmark."""
 
-import json
 import statistics
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import requests
 
 
 def test_control(
-    ip_address: str,
-    protocol: str,
-    duration: int,
-    logger: Any
+    ip_address: str, protocol: str, duration: int, logger: Any
 ) -> Dict[str, Any]:
     """Test control commands.
 
@@ -61,13 +57,22 @@ def test_control(
     # Construct control URL based on protocol
     if protocol == "HTTP":
         url = f"http://{ip_address}/control"
-        send_command = lambda cmd: _send_http_command(url, cmd)
+
+        def send_command(cmd):
+            return _send_http_command(url, cmd)
+
     elif protocol == "UDP":
         url = f"udp://{ip_address}:5001"
-        send_command = lambda cmd: _send_udp_command(url, cmd)
+
+        def send_command(cmd):
+            return _send_udp_command(url, cmd)
+
     elif protocol == "WebSocket":
         url = f"ws://{ip_address}:8080/control"
-        send_command = lambda cmd: _send_ws_command(url, cmd)
+
+        def send_command(cmd):
+            return _send_ws_command(url, cmd)
+
     else:
         raise ValueError(f"Unsupported control protocol: {protocol}")
 
@@ -82,23 +87,25 @@ def test_control(
             try:
                 # Send command and measure response time
                 cmd_start = time.time()
-                response = send_command(cmd)
+                send_command(cmd)
                 cmd_end = time.time()
 
                 # Calculate metrics
                 latency = (cmd_end - cmd_start) * 1000  # Convert to ms
                 metrics["latency"].append(latency)
                 commands_sent += 1
-                
+
                 # Track commands per second
                 second = int(time.time() - start_time)
                 if second > current_second:
                     if current_second > 0:  # Skip first incomplete second
-                        metrics["commands_per_second"].append({
-                            "second": current_second,
-                            "commands": commands_this_second,
-                            "errors": 0,
-                        })
+                        metrics["commands_per_second"].append(
+                            {
+                                "second": current_second,
+                                "commands": commands_this_second,
+                                "errors": 0,
+                            }
+                        )
                     current_second = second
                     commands_this_second = 0
                 commands_this_second += 1
@@ -125,18 +132,22 @@ def test_control(
 
     if metrics["latency"]:
         latencies = sorted(metrics["latency"])
-        metrics["latency_stats"].update({
-            "min_ms": min(latencies),
-            "max_ms": max(latencies),
-            "avg_ms": sum(latencies) / len(latencies),
-            "stability_ms": statistics.stdev(latencies) if len(latencies) > 1 else 0,
-            "percentiles": {
-                "p50": latencies[len(latencies) // 2],
-                "p90": latencies[int(len(latencies) * 0.9)],
-                "p95": latencies[int(len(latencies) * 0.95)],
-                "p99": latencies[int(len(latencies) * 0.99)],
-            },
-        })
+        metrics["latency_stats"].update(
+            {
+                "min_ms": min(latencies),
+                "max_ms": max(latencies),
+                "avg_ms": sum(latencies) / len(latencies),
+                "stability_ms": statistics.stdev(latencies)
+                if len(latencies) > 1
+                else 0,
+                "percentiles": {
+                    "p50": latencies[len(latencies) // 2],
+                    "p90": latencies[int(len(latencies) * 0.9)],
+                    "p95": latencies[int(len(latencies) * 0.95)],
+                    "p99": latencies[int(len(latencies) * 0.99)],
+                },
+            }
+        )
 
     # Log results
     _log_control_metrics(metrics, logger)
@@ -213,7 +224,7 @@ def _log_control_metrics(metrics: Dict[str, Any], logger: Any) -> None:
         logger.info("    90%%: %.1fms", metrics["latency_stats"]["percentiles"]["p90"])
         logger.info("    95%%: %.1fms", metrics["latency_stats"]["percentiles"]["p95"])
         logger.info("    99%%: %.1fms", metrics["latency_stats"]["percentiles"]["p99"])
-    
+
     if metrics["errors"]:
         logger.info("  Errors encountered:")
         for error in metrics["errors"]:

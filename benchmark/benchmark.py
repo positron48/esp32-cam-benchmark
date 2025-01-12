@@ -1,12 +1,10 @@
 """Main benchmark class for ESP32-CAM testing."""
 
 import json
+import os
 import subprocess
-import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
-import os
 
 from .protocols import control, video
 from .utils import config, logging, serial
@@ -22,7 +20,9 @@ class ESPCamBenchmark:
         self.results_dir = Path("results")
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
-    def run_test_combination(self, test_params: Dict[str, Any], skip_build: bool = False) -> Dict[str, Any]:
+    def run_test_combination(
+        self, test_params: Dict[str, Any], skip_build: bool = False
+    ) -> Dict[str, Any]:
         """Run a single test with specified parameters.
 
         Args:
@@ -34,7 +34,9 @@ class ESPCamBenchmark:
         """
         # Validate test parameters
         if test_params.get("raw_mode") and test_params.get("video_protocol") == "HTTP":
-            raise ValueError("HTTP protocol is not supported in RAW mode. Please use a different video protocol or disable RAW mode.")
+            raise ValueError(
+                "HTTP protocol is not supported in RAW mode. Please use a different video protocol or disable RAW mode."
+            )
 
         self.logger.info("Starting test with parameters: %s", test_params)
         results = {}
@@ -66,7 +68,7 @@ class ESPCamBenchmark:
                 test_params["quality"],
                 test_params.get("raw_mode", False),
                 self.config["test_duration"],
-                self.logger
+                self.logger,
             )
 
         # Run control test if protocol specified
@@ -75,20 +77,19 @@ class ESPCamBenchmark:
                 ip_address,
                 test_params["control_protocol"],
                 self.config["test_duration"],
-                self.logger
+                self.logger,
             )
 
         # Save metrics to file
         metrics_dir = Path("results/metrics")
         metrics_dir.mkdir(parents=True, exist_ok=True)
-        metrics_file = metrics_dir / config.generate_file_name(test_params, "metrics", "json")
-        
+        metrics_file = metrics_dir / config.generate_file_name(
+            test_params, "metrics", "json"
+        )
+
         with open(metrics_file, "w", encoding="utf-8") as f:
-            json.dump({
-                "parameters": test_params,
-                "results": results
-            }, f, indent=2)
-        
+            json.dump({"parameters": test_params, "results": results}, f, indent=2)
+
         self.logger.info("Metrics saved to: %s", metrics_file)
 
         return results
@@ -103,16 +104,10 @@ class ESPCamBenchmark:
         for test_params in self._generate_test_combinations():
             try:
                 result = self.run_test_combination(test_params)
-                results.append({
-                    "params": test_params,
-                    "results": result
-                })
+                results.append({"params": test_params, "results": result})
             except Exception as e:
                 self.logger.error("Test failed: %s", str(e))
-                results.append({
-                    "params": test_params,
-                    "error": str(e)
-                })
+                results.append({"params": test_params, "error": str(e)})
         return results
 
     def _build_and_flash(self) -> None:
@@ -121,19 +116,31 @@ class ESPCamBenchmark:
         try:
             # Prepare build flags based on current test parameters
             build_flags = []
-            if hasattr(self, 'current_test_params'):
+            if hasattr(self, "current_test_params"):
                 if self.current_test_params.get("video_protocol"):
-                    build_flags.append(f"-DVIDEO_PROTOCOL={self.current_test_params['video_protocol']}")
+                    build_flags.append(
+                        f"-DVIDEO_PROTOCOL={self.current_test_params['video_protocol']}"
+                    )
                 if self.current_test_params.get("control_protocol"):
-                    build_flags.append(f"-DCONTROL_PROTOCOL={self.current_test_params['control_protocol']}")
+                    build_flags.append(
+                        f"-DCONTROL_PROTOCOL={self.current_test_params['control_protocol']}"
+                    )
                 if self.current_test_params.get("resolution"):
-                    build_flags.append(f"-DCAMERA_RESOLUTION={self.current_test_params['resolution']}")
+                    build_flags.append(
+                        f"-DCAMERA_RESOLUTION={self.current_test_params['resolution']}"
+                    )
                 if self.current_test_params.get("quality"):
-                    build_flags.append(f"-DJPEG_QUALITY={self.current_test_params['quality']}")
+                    build_flags.append(
+                        f"-DJPEG_QUALITY={self.current_test_params['quality']}"
+                    )
                 # Always set ENABLE_METRICS based on test_params
-                build_flags.append(f"-DENABLE_METRICS={1 if self.current_test_params.get('metrics') else 0}")
-                build_flags.append(f"-DRAW_MODE={1 if self.current_test_params.get('raw_mode') else 0}")
-            
+                build_flags.append(
+                    f"-DENABLE_METRICS={1 if self.current_test_params.get('metrics') else 0}"
+                )
+                build_flags.append(
+                    f"-DRAW_MODE={1 if self.current_test_params.get('raw_mode') else 0}"
+                )
+
             # Set environment variable with build flags
             env = os.environ.copy()
             if build_flags:
@@ -146,13 +153,21 @@ class ESPCamBenchmark:
                 raise RuntimeError("ESP32-CAM not found")
 
             # Select build environment based on metrics
-            build_env = "esp32cam_with_metrics" if self.current_test_params.get("metrics") else "esp32cam"
+            build_env = (
+                "esp32cam_with_metrics"
+                if self.current_test_params.get("metrics")
+                else "esp32cam"
+            )
             self.logger.info("Using build environment: %s", build_env)
 
             # Build and upload in one command
             self.logger.info("Building and flashing firmware...")
-            subprocess.run(["pio", "run", "-e", build_env, "-t", "upload", "--upload-port", port], env=env, check=True)
-            
+            subprocess.run(
+                ["pio", "run", "-e", build_env, "-t", "upload", "--upload-port", port],
+                env=env,
+                check=True,
+            )
+
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to build/flash firmware: {e}") from e
 
@@ -173,13 +188,15 @@ class ESPCamBenchmark:
                             # Skip HTTP protocol in RAW mode
                             if raw_mode and protocol == "HTTP":
                                 continue
-                                
-                            combinations.append({
-                                "video_protocol": protocol,
-                                "resolution": resolution,
-                                "quality": quality,
-                                "control_protocol": ctrl_protocol,
-                                "metrics": True,
-                                "raw_mode": raw_mode
-                            })
+
+                            combinations.append(
+                                {
+                                    "video_protocol": protocol,
+                                    "resolution": resolution,
+                                    "quality": quality,
+                                    "control_protocol": ctrl_protocol,
+                                    "metrics": True,
+                                    "raw_mode": raw_mode,
+                                }
+                            )
         return combinations

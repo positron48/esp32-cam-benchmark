@@ -6,8 +6,8 @@
 #include "esp_system.h"
 
 #if ENABLE_METRICS
-    // Headers for metrics collection
-    #include "esp_system.h"
+// Headers for metrics collection
+#include "esp_system.h"
 #endif
 
 #include "camera.h"
@@ -20,27 +20,27 @@
 AsyncWebServer server(80);
 
 #if ENABLE_METRICS
-    // Function to read internal temperature
-    float readInternalTemperature() {
-        return temperatureRead();
-    }
+// Function to read internal temperature
+float readInternalTemperature() {
+    return temperatureRead();
+}
 
-    // Function to print task statistics
-    void printTaskStats() {
-        Serial.println("==== System Stats ====");
-        Serial.printf("CPU Frequency: %u MHz\n", ESP.getCpuFreqMHz());
-        Serial.printf("Free Heap: %u bytes\n", ESP.getFreeHeap());
-        Serial.printf("Heap Size: %u bytes\n", ESP.getHeapSize());
-        Serial.printf("Min Free Heap: %u bytes\n", ESP.getMinFreeHeap());
-        Serial.printf("Max Alloc Heap: %u bytes\n", ESP.getMaxAllocHeap());
-        Serial.printf("PSRAM Size: %u bytes\n", ESP.getPsramSize());
-        Serial.printf("Free PSRAM: %u bytes\n", ESP.getFreePsram());
-        
-        // Get running core for this task
-        Serial.printf("Running on core: %d\n", xPortGetCoreID());
-        
-        Serial.println("==================");
-    }
+// Function to print task statistics
+void printTaskStats() {
+    Serial.println("==== System Stats ====");
+    Serial.printf("CPU Frequency: %u MHz\n", ESP.getCpuFreqMHz());
+    Serial.printf("Free Heap: %u bytes\n", ESP.getFreeHeap());
+    Serial.printf("Heap Size: %u bytes\n", ESP.getHeapSize());
+    Serial.printf("Min Free Heap: %u bytes\n", ESP.getMinFreeHeap());
+    Serial.printf("Max Alloc Heap: %u bytes\n", ESP.getMaxAllocHeap());
+    Serial.printf("PSRAM Size: %u bytes\n", ESP.getPsramSize());
+    Serial.printf("Free PSRAM: %u bytes\n", ESP.getFreePsram());
+
+    // Get running core for this task
+    Serial.printf("Running on core: %d\n", xPortGetCoreID());
+
+    Serial.println("==================");
+}
 #endif
 
 void setup() {
@@ -49,11 +49,11 @@ void setup() {
     Serial.println("\n=== ESP32-CAM Initialization ===");
 
 // Convert defines to strings for better logging
-#define XSTR(x)  STR(x)
+#define XSTR(x) STR(x)
 #define STR(x)  #x
 
 #define _CONCAT(a, b) a##b
-#define CONCAT(a, b) _CONCAT(a, b)
+#define CONCAT(a, b)  _CONCAT(a, b)
 
     Serial.printf("- Video Protocol: %s\n", XSTR(VIDEO_PROTOCOL));
     Serial.printf("- Control Protocol: %s\n", XSTR(CONTROL_PROTOCOL));
@@ -87,7 +87,7 @@ void setup() {
 #if RAW_MODE
     config.pixel_format = PIXFORMAT_RGB565;  // Raw format for raw mode
 #else
-    config.pixel_format = PIXFORMAT_JPEG;    // JPEG format for normal mode
+    config.pixel_format = PIXFORMAT_JPEG;  // JPEG format for normal mode
 #endif
     config.frame_size   = CONCAT(FRAMESIZE_, CAMERA_RESOLUTION);
     config.jpeg_quality = JPEG_QUALITY;
@@ -153,11 +153,11 @@ void loop() {
     // Log status every second
     if (millis() - lastLog > 1000) {
         float temperature = readInternalTemperature();
-        Serial.printf(
-            "Status: WiFi RSSI=%d dBm, Free heap=%d bytes, Temperature=%.2f °C\n", 
-            WiFi.RSSI(), ESP.getFreeHeap(), temperature);
-            
-        
+        Serial.printf("Status: WiFi RSSI=%d dBm, Free heap=%d bytes, Temperature=%.2f °C\n",
+                      WiFi.RSSI(),
+                      ESP.getFreeHeap(),
+                      temperature);
+
         lastLog = millis();
     }
 #endif
