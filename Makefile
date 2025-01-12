@@ -105,10 +105,10 @@ fix: venv
 	# Upgrade Python syntax
 	find benchmark/ tests/ -name "*.py" -type f -exec $(VENV)/bin/pyupgrade --py38-plus {} +
 	# Fix common Python issues with ruff
-	$(VENV)/bin/ruff check --fix benchmark/ tests/
+	-$(VENV)/bin/ruff check --fix benchmark/ tests/
 	# Format code
 	$(VENV)/bin/black benchmark/ tests/
-	$(VENV)/bin/autopep8 --in-place --aggressive --aggressive benchmark/ tests/*.py
+	find benchmark/ tests/ -name "*.py" -type f -exec $(VENV)/bin/autopep8 --in-place --aggressive --aggressive {} +
 	@echo "3. Running format..."
 	@echo "Formatting C++ code again to ensure consistency..."
 	@find src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format

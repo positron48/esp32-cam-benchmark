@@ -175,8 +175,7 @@ def test_video(
 
     # Подсчёт статистики по временам между кадрами
     if frame_times:
-        frame_times_ms = [t * 1000 for t in frame_times]
-        frame_times_ms.sort()
+        frame_times_ms = sorted([t * 1000 for t in frame_times])
         frame_time_percentiles = {
             "p50": frame_times_ms[len(frame_times_ms) // 2],
             "p90": frame_times_ms[int(len(frame_times_ms) * 0.9)],
