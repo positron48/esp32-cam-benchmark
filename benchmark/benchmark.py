@@ -74,6 +74,19 @@ class ESPCamBenchmark:
                 self.logger
             )
 
+        # Save metrics to file
+        metrics_dir = Path("results/metrics")
+        metrics_dir.mkdir(parents=True, exist_ok=True)
+        metrics_file = metrics_dir / config.generate_file_name(test_params, "metrics", "json")
+        
+        with open(metrics_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "parameters": test_params,
+                "results": results
+            }, f, indent=2)
+        
+        self.logger.info("Metrics saved to: %s", metrics_file)
+
         return results
 
     def run_all_tests(self) -> List[Dict[str, Any]]:
