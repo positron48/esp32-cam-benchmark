@@ -91,30 +91,13 @@ check: venv
 
 # Attempt to fix all issues automatically
 fix: venv
-	@echo "Attempting to fix code issues..."
-	@echo "1. Fixing C++ formatting and issues..."
-	@find src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
-	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
-		--template="{file}:{line}: {severity}: {message}" \
-		src/ 2>cppcheck_errors.txt
-	@echo "2. Fixing Python code..."
-	# Sort imports
+	@echo "Fixing code formatting..."
+	@echo "1. Fixing Python code..."
 	$(VENV)/bin/isort benchmark/ tests/
-	# Remove unused imports and variables
-	find benchmark/ tests/ -name "*.py" -type f -exec $(VENV)/bin/autoflake --in-place --remove-all-unused-imports --remove-unused-variables {} +
-	# Upgrade Python syntax
-	find benchmark/ tests/ -name "*.py" -type f -exec $(VENV)/bin/pyupgrade --py38-plus {} +
-	# Fix common Python issues with ruff
-	-$(VENV)/bin/ruff check --fix benchmark/ tests/
-	# Format code
 	$(VENV)/bin/black benchmark/ tests/
-	find benchmark/ tests/ -name "*.py" -type f -exec $(VENV)/bin/autopep8 --in-place --aggressive --aggressive {} +
-	@echo "3. Running format..."
-	@echo "Formatting C++ code again to ensure consistency..."
+	@echo "2. Fixing C++ code..."
 	@find src -iname "*.h" -o -iname "*.cpp" | xargs -r clang-format -i --style=file:.clang-format
-	@echo "Formatting Python code again to ensure consistency..."
-	@$(VENV)/bin/black benchmark/ tests/
-	@echo "Fix completed. Please review changes and run tests."
+	@echo "Fix completed. Please review changes."
 
 # Run tests
 test: venv
