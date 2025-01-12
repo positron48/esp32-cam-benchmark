@@ -4,7 +4,6 @@ This module contains tests for the ESP32-CAM benchmark runner,
 including configuration loading, directory structure, and command generation.
 """
 
-from contextlib import suppress
 from unittest.mock import patch
 
 import numpy as np

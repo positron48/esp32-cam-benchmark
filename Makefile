@@ -93,6 +93,7 @@ check: venv
 fix: venv
 	@echo "Fixing code formatting..."
 	@echo "1. Fixing Python code..."
+	$(VENV)/bin/ruff check --fix benchmark/ tests/
 	$(VENV)/bin/isort benchmark/ tests/
 	$(VENV)/bin/black benchmark/ tests/
 	@echo "2. Fixing C++ code..."
