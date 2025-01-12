@@ -126,8 +126,8 @@ class ESPCamBenchmark:
                     build_flags.append(f"-DCAMERA_RESOLUTION={self.current_test_params['resolution']}")
                 if self.current_test_params.get("quality"):
                     build_flags.append(f"-DJPEG_QUALITY={self.current_test_params['quality']}")
-                if self.current_test_params.get("metrics"):
-                    build_flags.append("-DENABLE_METRICS=1")
+                # Always set ENABLE_METRICS based on test_params
+                build_flags.append(f"-DENABLE_METRICS={1 if self.current_test_params.get('metrics') else 0}")
                 if self.current_test_params.get("raw_mode"):
                     build_flags.append("-DRAW_MODE=1")
             

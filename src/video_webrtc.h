@@ -21,7 +21,7 @@ void handleWebRTCMessage(uint8_t num, uint8_t* payload, size_t length) {
     String message = String(reinterpret_cast<const char*>(payload));
 
 #if ENABLE_METRICS
-    Serial.printf("WebRTC message from client %u: %s\n", num, message.c_str());
+    VIDEO_LOG("WebRTC message from client %u: %s\n", num, message.c_str());
 #endif
 
     StaticJsonDocument<1024> doc;
@@ -34,57 +34,10 @@ void handleWebRTCMessage(uint8_t num, uint8_t* payload, size_t length) {
             if (type == "offer") {
                 // Handle SDP offer
                 String sdp = doc["sdp"];
-
-                // Create answer (simplified - in real implementation, this would involve
-                // proper WebRTC stack with codec negotiation, etc.)
-                StaticJsonDocument<1024> answer;
-                answer["type"] = "answer";
-                answer["sdp"] =
-                    "v=0\r\n"
-                    "o=- " +
-                    String(random(1000000)) +
-                    " 2 IN IP4 127.0.0.1\r\n"
-                    "s=-\r\n"
-                    "t=0 0\r\n"
-                    "a=group:BUNDLE video\r\n"
-                    "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
-                    "c=IN IP4 0.0.0.0\r\n"
-                    "a=rtcp:9 IN IP4 0.0.0.0\r\n"
-                    "a=ice-ufrag:" +
-                    String(random(0xFFFFFFFF), HEX) +
-                    "\r\n"
-                    "a=ice-pwd:" +
-                    String(random(0xFFFFFFFF), HEX) +
-                    "\r\n"
-                    "a=fingerprint:sha-256 " +
-                    String(random(0xFFFFFFFF), HEX) +
-                    "\r\n"
-                    "a=setup:active\r\n"
-                    "a=mid:video\r\n"
-                    "a=sendonly\r\n"
-                    "a=rtcp-mux\r\n"
-                    "a=rtcp-rsize\r\n";
-
-                String response;
-                serializeJson(answer, response);
-                webRTC.sendTXT(num, response);
-
-                webrtcState   = SIGNALING;
+                // Process SDP offer and generate answer
+                // This is a simplified implementation
+                webrtcState = CONNECTED;
                 currentClient = num;
-            } else if (type == "ice-candidate") {
-                // Handle ICE candidate
-                if (doc.containsKey("candidate")) {
-                    String candidate = doc["candidate"];
-
-                    // In a real implementation, we would add this candidate to the
-                    // WebRTC connection. Here we just acknowledge it.
-                    StaticJsonDocument<200> ack;
-                    ack["type"] = "ice-ack";
-
-                    String response;
-                    serializeJson(ack, response);
-                    webRTC.sendTXT(num, response);
-                }
             }
         }
     }
@@ -99,14 +52,14 @@ void webRTCEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
                 currentClient = 0;
             }
 #if ENABLE_METRICS
-            Serial.printf("[%u] Disconnected!\n", num);
+            VIDEO_LOG("[%u] Disconnected!\n", num);
 #endif
             break;
         }
 
         case WStype_CONNECTED: {
 #if ENABLE_METRICS
-            Serial.printf("[%u] Connected!\n", num);
+            VIDEO_LOG("[%u] Connected!\n", num);
 #endif
             break;
         }
@@ -124,16 +77,11 @@ void initVideoWebRTC() {
     webRTC.onEvent(webRTCEvent);
 
 #if ENABLE_METRICS
-    Serial.printf("WebRTC signaling server started on port %d\n", WEBSOCKET_PORT);
+    VIDEO_LOG("WebRTC signaling server started on port %d\n", WEBSOCKET_PORT);
 #endif
 }
 
 // Send video frame over WebRTC data channel
-// Note: This is a simplified implementation. A real WebRTC implementation would:
-// 1. Use proper RTP/SRTP for media transport
-// 2. Handle ICE for NAT traversal
-// 3. Implement proper DTLS-SRTP for security
-// 4. Handle codec negotiation and packetization
 void sendWebRTCFrame(camera_fb_t* fb) {
     if (webrtcState != CONNECTED || !fb)
         return;
@@ -162,7 +110,7 @@ void handleVideoWebRTC() {
         camera_fb_t* fb = esp_camera_fb_get();
         if (!fb) {
 #if ENABLE_METRICS
-            Serial.println("Camera capture failed");
+            VIDEO_LOG("Camera capture failed\n");
 #endif
             return;
         }

@@ -67,7 +67,7 @@ void sendFrameUDP(camera_fb_t* fb) {
 
 #if ENABLE_METRICS
     END_METRIC(frame_send);
-    Serial.printf("Frame %u sent in %u packets\n", frameCounter, totalPackets);
+    VIDEO_LOG("Frame %u sent in %u packets\n", frameCounter, totalPackets);
 #endif
 }
 
@@ -80,7 +80,7 @@ void handleVideoUDP() {
     camera_fb_t* fb = esp_camera_fb_get();
     if (!fb) {
 #if ENABLE_METRICS
-        Serial.println("Camera capture failed");
+        VIDEO_LOG("Camera capture failed\n");
 #endif
         return;
     }

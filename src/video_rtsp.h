@@ -29,7 +29,7 @@ class RTSPServer {
     void sendRTSPResponse(const char* response) {
         client.print(response);
 #if ENABLE_METRICS
-        Serial.println(response);
+        VIDEO_LOG("%s", response);
 #endif
     }
 
@@ -143,7 +143,7 @@ class RTSPServer {
     void begin() {
         server.begin();
 #if ENABLE_METRICS
-        Serial.printf("RTSP server started on port %d\n", RTSP_PORT);
+        VIDEO_LOG("RTSP server started on port %d\n", RTSP_PORT);
 #endif
     }
 
@@ -153,7 +153,7 @@ class RTSPServer {
             if (client) {
                 clientConnected = true;
 #if ENABLE_METRICS
-                Serial.println("New RTSP client connected");
+                VIDEO_LOG("New RTSP client connected\n");
 #endif
             }
         }
@@ -161,7 +161,7 @@ class RTSPServer {
         if (clientConnected && client.available()) {
             String request = client.readStringUntil('\n');
 #if ENABLE_METRICS
-            Serial.println(request);
+            VIDEO_LOG("%s\n", request.c_str());
 #endif
 
             // Parse request
@@ -230,7 +230,7 @@ void handleVideoRTSP() {
         camera_fb_t* fb = esp_camera_fb_get();
         if (!fb) {
 #if ENABLE_METRICS
-            Serial.println("Camera capture failed");
+            VIDEO_LOG("Camera capture failed\n");
 #endif
             return;
         }

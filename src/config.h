@@ -35,7 +35,7 @@
 // Frame interval in milliseconds (1000/FPS)
 #define FRAME_INTERVAL_MS 100  // 10 FPS
 
-// Metrics
+// Metrics and logging
 #if ENABLE_METRICS
 #define START_METRIC(name) uint32_t name##_start = millis()
 #define END_METRIC(name)                                                             \
@@ -44,7 +44,9 @@
         uint32_t name##_duration = static_cast<uint32_t>(name##_end - name##_start); \
         Serial.printf("%s: %u ms\n", #name, name##_duration);                        \
     } while (0)
+#define VIDEO_LOG(fmt, ...) Serial.printf(fmt, ##__VA_ARGS__)
 #else
 #define START_METRIC(name)
 #define END_METRIC(name)
+#define VIDEO_LOG(fmt, ...)
 #endif

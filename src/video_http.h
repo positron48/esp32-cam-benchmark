@@ -17,11 +17,11 @@ extern AsyncWebServer server;
 */
 
 void initVideoHTTP() {
-    Serial.println("Initializing video HTTP...");
+    VIDEO_LOG("Initializing video HTTP...");
 
     // Маршрут: HTML-страница с <img src="/video">
     server.on("/stream", HTTP_GET, [](AsyncWebServerRequest* request) {
-        Serial.println("Stream page requested");
+        VIDEO_LOG("Stream page requested");
         AsyncWebServerResponse* response = request->beginResponse(
             200,
             "text/html",
@@ -34,12 +34,12 @@ void initVideoHTTP() {
             "</body></html>");
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
-        Serial.println("Stream page sent");
+        VIDEO_LOG("Stream page sent");
     });
 
     // Маршрут /video — отправка MJPEG потока chunked-методом
     server.on("/video", HTTP_GET, [](AsyncWebServerRequest* request) {
-        Serial.println("Video stream requested");
+        VIDEO_LOG("Video stream requested");
 
         AsyncWebServerResponse* response = request->beginChunkedResponse(
             String("multipart/x-mixed-replace;boundary=") + BOUNDARY,
@@ -60,7 +60,7 @@ void initVideoHTTP() {
                     fb = esp_camera_fb_get();
                     if (!fb) {
                         failCount++;
-                        Serial.printf("[video_http] Camera capture failed, failCount=%d\n",
+                        VIDEO_LOG("[video_http] Camera capture failed, failCount=%d\n",
                                       failCount);
                         if (failCount > 5) {
                             vTaskDelay(pdMS_TO_TICKS(100));  // небольшая задержка, если нет кадров
@@ -75,7 +75,7 @@ void initVideoHTTP() {
                     headerSent = 0;
                     headerLen  = 0;
 
-                    Serial.printf("[video_http] Got new frame, size=%u\n", fb->len);
+                    VIDEO_LOG("[video_http] Got new frame, size=%u\n", fb->len);
                 }
 
                 // 2) Сначала, если нужно, готовим и отправляем заголовок
@@ -97,7 +97,7 @@ void initVideoHTTP() {
                             fb = nullptr;
                             return 0;
                         }
-                        Serial.printf("[video_http] Header length=%u\n", (unsigned) headerLen);
+                        VIDEO_LOG("[video_http] Header length=%u\n", (unsigned) headerLen);
                     }
 
                     // Сколько ещё осталось байт заголовка, которые не отправили?
@@ -134,7 +134,7 @@ void initVideoHTTP() {
                 if (offset >= fb->len) {
                     esp_camera_fb_return(fb);
                     fb = nullptr;
-                    Serial.println("[video_http] Frame fully sent!");
+                    VIDEO_LOG("[video_http] Frame fully sent!");
                 }
 
                 return toSend;
@@ -148,10 +148,10 @@ void initVideoHTTP() {
         response->addHeader("Expires", "0");
 
         request->send(response);
-        Serial.println("Chunked MJPEG stream started");
+        VIDEO_LOG("Chunked MJPEG stream started");
     });
 
-    Serial.println("Video HTTP initialized");
+    VIDEO_LOG("Video HTTP initialized");
 }
 
 void handleVideoHTTP() {

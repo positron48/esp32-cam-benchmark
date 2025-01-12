@@ -108,10 +108,12 @@ void loop() {
     static uint32_t lastLog = 0;
     handleVideoHTTP();
 
+#if ENABLE_METRICS
     // Log status every 10 seconds
     if (millis() - lastLog > 10000) {
         Serial.printf(
             "Status: WiFi RSSI=%d dBm, Free heap=%d bytes\n", WiFi.RSSI(), ESP.getFreeHeap());
         lastLog = millis();
     }
+#endif
 }
