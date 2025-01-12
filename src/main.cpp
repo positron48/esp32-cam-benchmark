@@ -2,6 +2,14 @@
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
 
+// Core system headers
+#include "esp_system.h"
+
+#if ENABLE_METRICS
+    // Headers for metrics collection
+    #include "esp_system.h"
+#endif
+
 #include "camera.h"
 #include "config.h"
 #include "ctrl_http.h"
@@ -10,6 +18,31 @@
 
 // Global web server instance
 AsyncWebServer server(80);
+
+#if ENABLE_METRICS
+    // Function to read internal temperature
+    float readInternalTemperature() {
+        // ESP32's internal temperature sensor reading
+        return (temperatureRead() - 32.0) / 1.8; // Convert from Fahrenheit to Celsius
+    }
+
+    // Function to print task statistics
+    void printTaskStats() {
+        Serial.println("==== System Stats ====");
+        Serial.printf("CPU Frequency: %u MHz\n", ESP.getCpuFreqMHz());
+        Serial.printf("Free Heap: %u bytes\n", ESP.getFreeHeap());
+        Serial.printf("Heap Size: %u bytes\n", ESP.getHeapSize());
+        Serial.printf("Min Free Heap: %u bytes\n", ESP.getMinFreeHeap());
+        Serial.printf("Max Alloc Heap: %u bytes\n", ESP.getMaxAllocHeap());
+        Serial.printf("PSRAM Size: %u bytes\n", ESP.getPsramSize());
+        Serial.printf("Free PSRAM: %u bytes\n", ESP.getFreePsram());
+        
+        // Get running core for this task
+        Serial.printf("Running on core: %d\n", xPortGetCoreID());
+        
+        Serial.println("==================");
+    }
+#endif
 
 void setup() {
     Serial.begin(115200);
@@ -105,14 +138,20 @@ void setup() {
 }
 
 void loop() {
-    static uint32_t lastLog = 0;
     handleVideoHTTP();
 
 #if ENABLE_METRICS
-    // Log status every 10 seconds
-    if (millis() - lastLog > 10000) {
+    static uint32_t lastLog = 0;
+    // Log status every second
+    if (millis() - lastLog > 1000) {
+        float temperature = readInternalTemperature();
         Serial.printf(
-            "Status: WiFi RSSI=%d dBm, Free heap=%d bytes\n", WiFi.RSSI(), ESP.getFreeHeap());
+            "Status: WiFi RSSI=%d dBm, Free heap=%d bytes, Temperature=%.2f °C\n", 
+            WiFi.RSSI(), ESP.getFreeHeap(), temperature);
+            
+        // Print task statistics
+        printTaskStats();
+        
         lastLog = millis();
     }
 #endif

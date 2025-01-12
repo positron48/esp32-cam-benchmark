@@ -142,9 +142,13 @@ class ESPCamBenchmark:
             if not port:
                 raise RuntimeError("ESP32-CAM not found")
 
+            # Select build environment based on metrics
+            build_env = "esp32cam_with_metrics" if self.current_test_params.get("metrics") else "esp32cam"
+            self.logger.info("Using build environment: %s", build_env)
+
             # Build and upload in one command
             self.logger.info("Building and flashing firmware...")
-            subprocess.run(["pio", "run", "-t", "upload", "--upload-port", port], env=env, check=True)
+            subprocess.run(["pio", "run", "-e", build_env, "-t", "upload", "--upload-port", port], env=env, check=True)
             
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to build/flash firmware: {e}") from e
