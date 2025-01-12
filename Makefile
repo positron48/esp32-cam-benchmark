@@ -77,14 +77,14 @@ check: venv
 	@echo "1. Running C++ checks..."
 	@echo "Checking C++ formatting..."
 	find src -iname "*.h" -o -iname "*.cpp" | xargs clang-format --dry-run --Werror --style=file:.clang-format
-	-$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
+	$(VENV)/bin/cppcheck --enable=all --suppress=missingInclude --inline-suppr \
 		--template="{file}:{line}: {severity}: {message}" \
 		src/
-	-$(VENV)/bin/cpplint --filter=-legal/copyright,-build/include_subdir \
+	$(VENV)/bin/cpplint --filter=-legal/copyright,-build/include_subdir \
 		--recursive src/
 	@echo "2. Running Python checks..."
-	-$(VENV)/bin/pylint benchmark/ tests/
-	-$(VENV)/bin/black --check benchmark/ tests/
+	$(VENV)/bin/pylint benchmark/ tests/
+	$(VENV)/bin/black --check benchmark/ tests/
 	@echo "3. Running tests..."
 	$(PYTHON) -m pytest tests/ -v
 	@echo "Checks completed. Use 'make fix' to attempt automatic fixes."

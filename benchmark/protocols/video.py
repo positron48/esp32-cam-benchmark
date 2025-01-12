@@ -144,8 +144,7 @@ def test_video(
         # ----------- Duplication logic -----------
         ideal_dt = 1.0 / nominal_fps
         duplicates = int(round(dt / ideal_dt))
-        if duplicates < 1:
-            duplicates = 1
+        duplicates = max(duplicates, 1)
 
         for _ in range(duplicates):
             out.write(frame)
@@ -175,7 +174,8 @@ def test_video(
 
     # Calculate frame time statistics
     if frame_times:
-        frame_times_ms = sorted([t * 1000 for t in frame_times])
+        frame_times_ms = [t * 1000 for t in frame_times]
+        frame_times_ms.sort()
         frame_time_percentiles = {
             "p50": frame_times_ms[len(frame_times_ms) // 2],
             "p90": frame_times_ms[int(len(frame_times_ms) * 0.9)],
@@ -188,7 +188,7 @@ def test_video(
     # Collect FPS summary
     complete_seconds_fps = []
     for second in sorted(frames_by_second.keys()):
-        if second > 0 and second <= duration:
+        if 0 < second <= duration:
             complete_seconds_fps.append(frames_by_second[second]["frames"])
             metrics["frames_per_second"].append(
                 {
