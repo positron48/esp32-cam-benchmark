@@ -1,13 +1,16 @@
 -r requirements.txt
-pytest==7.4.3
-pytest-cov==4.1.0
-black==23.11.0
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=22.0.0
 pylint==3.0.2
 autopep8==2.0.4
 clang-format==16.0.6
-isort==5.12.0
+isort>=5.0.0
 autoflake==2.2.1
 pyupgrade==3.15.0
 ruff==0.1.6
 cppcheck==1.4.7
 cpplint==1.6.1
+flake8>=4.0.0
+mypy>=0.950
+numpy>=1.21.0

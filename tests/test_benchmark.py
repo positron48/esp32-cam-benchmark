@@ -7,6 +7,7 @@ including configuration loading, directory structure, and command generation.
 from contextlib import suppress
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 
 from benchmark import ESPCamBenchmark
@@ -72,6 +73,10 @@ def test_video_url_generation(
     mock_wait_for_ip, mock_serial, mock_cv2, benchmark_instance
 ):
     """Test that video stream URLs are correctly generated"""
+    # Create a mock frame
+    mock_frame = np.zeros((640, 480, 3), dtype=np.uint8)
+    mock_cv2.imread.return_value = mock_frame
+
     # Set test parameters
     benchmark_instance.current_test_params = {"video_protocol": "HTTP"}
     # IP address should be obtained from wait_for_ip mock
@@ -87,10 +92,7 @@ def test_video_url_generation(
     mock_cv2.CAP_PROP_FRAME_HEIGHT = 4
     mock_cv2.CAP_PROP_FPS = 5
     # Mock read() to return a frame
-    mock_cv2.VideoCapture.return_value.read.return_value = (
-        True,
-        mock_cv2.imread("test.jpg"),
-    )
+    mock_cv2.VideoCapture.return_value.read.return_value = (True, mock_frame)
 
     # Test HTTP URL
     with suppress(Exception):  # We expect an error when actually trying to capture
@@ -123,7 +125,8 @@ def test_video_url_generation(
         benchmark_instance.capture_video(1, "test.mp4")
 
 
-def test_control_protocol(benchmark_instance):
+@patch("benchmark.utils.serial.find_esp_port")
+def test_control_protocol(mock_find_esp_port, benchmark_instance):
     """Test control protocol functionality"""
     test_params = {
         "video_protocol": "HTTP",
@@ -134,6 +137,9 @@ def test_control_protocol(benchmark_instance):
         "raw_mode": False,
     }
     benchmark_instance.current_test_params = test_params
+
+    # Mock find_esp_port to return a valid port
+    mock_find_esp_port.return_value = "/dev/ttyUSB0"
 
     # Mock socket operations
     with patch("socket.socket") as mock_socket:
