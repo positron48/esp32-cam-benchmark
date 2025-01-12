@@ -164,7 +164,7 @@ def _send_http_command(url: str, command: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Response data
     """
-    response = requests.post(url, json=command, timeout=5.0)
+    response = requests.post(url, json=command)
     response.raise_for_status()
     return response.json()
 

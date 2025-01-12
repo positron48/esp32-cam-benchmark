@@ -33,7 +33,7 @@ def test_video(
     Returns:
         Dictionary with test results
     """
-    # Мы добавляем 2 секунды для неполных первой и последней секунд
+    # Add 2 seconds for incomplete first and last seconds
     actual_duration = duration + 2
 
     logger.info(
@@ -44,7 +44,7 @@ def test_video(
         raw_mode,
     )
 
-    # Инициализируем метрики
+    # Initialize metrics
     metrics = {
         "connection_time": 0,
         "total_frames": 0,
@@ -56,11 +56,11 @@ def test_video(
         "frames_per_second": [],  # frames captured in each second
     }
 
-    # Формируем URL
+    # Form URL
     if protocol == "HTTP":
         url = f"http://{ip_address}/video"
     elif protocol == "RTSP":
-        url = f"rtsp://{ip_address}:8554/stream"
+        url = f"rtsp://{ip_address}:8554/video"
     elif protocol == "UDP":
         url = f"udp://{ip_address}:5000"
     elif protocol == "WebRTC":
@@ -68,14 +68,14 @@ def test_video(
     else:
         raise ValueError(f"Unsupported video protocol: {protocol}")
 
-    # Создаём директорию для результатов
+    # Create results directory
     output_dir = Path("results/video")
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / (
         f'video_{datetime.now().strftime("%Y%m%d_%H%M%S")}_{protocol}_{resolution}_q{quality}.mp4'
     )
 
-    # Открываем поток
+    # Open stream
     connection_start = time.time()
     logger.info("Opening video stream: %s", url)
     cap = cv2.VideoCapture(url)
@@ -83,10 +83,10 @@ def test_video(
         raise RuntimeError("Failed to open video stream")
     metrics["connection_time"] = time.time() - connection_start
 
-    # Свойства видеопотока
+    # Video stream properties
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    nominal_fps = 30  # Целевой FPS, в котором мы будем сохранять видео
+    nominal_fps = 30  # Target FPS for saving video
     logger.info(
         "Video properties: %dx%d, writing at nominal %d fps",
         frame_width,
@@ -94,13 +94,13 @@ def test_video(
         nominal_fps,
     )
 
-    # Настраиваем VideoWriter
+    # Setup VideoWriter
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(
         str(output_path), fourcc, nominal_fps, (frame_width, frame_height)
     )
 
-    # Доп. переменные для метрик
+    # Additional metrics variables
     frames_captured = 0
     failed_reads = 0
     start_time = time.time()
@@ -111,13 +111,13 @@ def test_video(
     last_log_second = -1
     last_log_frames = 0
 
-    # Основной цикл чтения
+    # Main reading loop
     while (time.time() - start_time) < actual_duration:
         ret, frame = cap.read()
         current_time = time.time()
         elapsed = current_time - start_time
 
-        # Пропускаем неполную первую секунду
+        # Skip incomplete first second
         if first_frame:
             first_frame = False
             last_frame_time = current_time
@@ -128,11 +128,11 @@ def test_video(
             failed_reads += 1
             continue
 
-        # Вычисляем dt
+        # Calculate dt
         dt = current_time - last_frame_time
         last_frame_time = current_time
 
-        # Считаем кадры, пришедшие от ESP
+        # Count frames from ESP
         frames_captured += 1
         frame_times.append(dt)
 
@@ -141,15 +141,17 @@ def test_video(
             frames_by_second[second] = {"frames": 0, "dropped": 0}
         frames_by_second[second]["frames"] += 1
 
-        # ----------- Логика дублирования -----------
+        # ----------- Duplication logic -----------
         ideal_dt = 1.0 / nominal_fps
-        duplicates = max(int(round(dt / ideal_dt)), 1)
+        duplicates = int(round(dt / ideal_dt))
+        if duplicates < 1:
+            duplicates = 1
 
         for _ in range(duplicates):
             out.write(frame)
         # -------------------------------------------
 
-        # Логгирование каждые секунду (примерно)
+        # Log approximately every second
         if second > last_log_second and second > 0:
             frames_this_second = frames_captured - last_log_frames
             avg_fps = frames_captured / elapsed
@@ -164,14 +166,14 @@ def test_video(
             last_log_second = second
             last_log_frames = frames_captured
 
-    # Завершение
+    # Cleanup
     cap.release()
     out.release()
 
     test_duration = time.time() - start_time
     file_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
 
-    # Подсчёт статистики по временам между кадрами
+    # Calculate frame time statistics
     if frame_times:
         frame_times_ms = sorted([t * 1000 for t in frame_times])
         frame_time_percentiles = {
@@ -183,10 +185,10 @@ def test_video(
     else:
         frame_time_percentiles = {"p50": 0, "p90": 0, "p95": 0, "p99": 0}
 
-    # Собираем FPS-сводку
+    # Collect FPS summary
     complete_seconds_fps = []
     for second in sorted(frames_by_second.keys()):
-        if 0 < second <= duration:
+        if second > 0 and second <= duration:
             complete_seconds_fps.append(frames_by_second[second]["frames"])
             metrics["frames_per_second"].append(
                 {
@@ -219,8 +221,8 @@ def test_video(
 
     metrics.update(
         {
-            "total_frames": frames_captured,  # сырые кадры от ESP
-            "dropped_frames": failed_reads,  # не прочитанные (ret=False)
+            "total_frames": frames_captured,  # raw frames from ESP
+            "dropped_frames": failed_reads,  # not read (ret=False)
             "avg_fps": (
                 sum(complete_seconds_fps) / len(complete_seconds_fps)
                 if len(complete_seconds_fps) > 0
