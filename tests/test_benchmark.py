@@ -85,18 +85,17 @@ def test_video_url_generation(
     benchmark_instance.config["wifi"]["device_ip"] = expected_ip
 
     # Configure mock
-    mock_cv2.VideoCapture.return_value.isOpened.return_value = True
-    mock_cv2.VideoCapture.return_value.get.return_value = 640
+    mock_capture = mock_cv2.VideoCapture.return_value
+    mock_capture.isOpened.return_value = True
+    mock_capture.get.return_value = 640
+    mock_capture.read.return_value = (True, mock_frame)
     mock_cv2.VideoWriter_fourcc.return_value = 0
     mock_cv2.CAP_PROP_FRAME_WIDTH = 3
     mock_cv2.CAP_PROP_FRAME_HEIGHT = 4
     mock_cv2.CAP_PROP_FPS = 5
-    # Mock read() to return a frame
-    mock_cv2.VideoCapture.return_value.read.return_value = (True, mock_frame)
 
     # Test HTTP URL
-    with suppress(Exception):  # We expect an error when actually trying to capture
-        benchmark_instance.capture_video(1, "test.mp4")
+    benchmark_instance.capture_video(1, "test.mp4")
     mock_cv2.VideoCapture.assert_called_once()
     args = mock_cv2.VideoCapture.call_args[0]
     assert args[0] == f"http://{expected_ip}/video"
@@ -104,8 +103,7 @@ def test_video_url_generation(
     # Test RTSP URL
     mock_cv2.VideoCapture.reset_mock()
     benchmark_instance.current_test_params = {"video_protocol": "RTSP"}
-    with suppress(Exception):  # We expect an error when actually trying to capture
-        benchmark_instance.capture_video(1, "test.mp4")
+    benchmark_instance.capture_video(1, "test.mp4")
     mock_cv2.VideoCapture.assert_called_once()
     args = mock_cv2.VideoCapture.call_args[0]
     assert args[0] == f"rtsp://{expected_ip}:8554/stream"
@@ -113,8 +111,7 @@ def test_video_url_generation(
     # Test UDP URL
     mock_cv2.VideoCapture.reset_mock()
     benchmark_instance.current_test_params = {"video_protocol": "UDP"}
-    with suppress(Exception):  # We expect an error when actually trying to capture
-        benchmark_instance.capture_video(1, "test.mp4")
+    benchmark_instance.capture_video(1, "test.mp4")
     mock_cv2.VideoCapture.assert_called_once()
     args = mock_cv2.VideoCapture.call_args[0]
     assert args[0] == f"udp://{expected_ip}:5000"
@@ -126,7 +123,11 @@ def test_video_url_generation(
 
 
 @patch("benchmark.utils.serial.find_esp_port")
-def test_control_protocol(mock_find_esp_port, benchmark_instance):
+@patch("benchmark.utils.serial.serial.Serial")
+@patch("benchmark.utils.serial.wait_for_ip")
+def test_control_protocol(
+    mock_wait_for_ip, mock_serial, mock_find_esp_port, benchmark_instance
+):
     """Test control protocol functionality"""
     test_params = {
         "video_protocol": "HTTP",
@@ -140,6 +141,14 @@ def test_control_protocol(mock_find_esp_port, benchmark_instance):
 
     # Mock find_esp_port to return a valid port
     mock_find_esp_port.return_value = "/dev/ttyUSB0"
+
+    # Mock wait_for_ip to return a valid IP
+    mock_wait_for_ip.return_value = "192.168.1.100"
+
+    # Mock serial port behavior
+    mock_serial_instance = mock_serial.return_value
+    mock_serial_instance.__enter__.return_value = mock_serial_instance
+    mock_serial_instance.readline.return_value = b"IP: 192.168.1.100\n"
 
     # Mock socket operations
     with patch("socket.socket") as mock_socket:
