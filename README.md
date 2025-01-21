@@ -1,5 +1,7 @@
 # ESP32-CAM Benchmark
 
+*** в процессе разработки ***
+
 [![CI](https://github.com/positron48/esp32-cam-benchmark/actions/workflows/ci.yml/badge.svg)](https://github.com/positron48/esp32-cam-benchmark/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -8,7 +10,7 @@
 ## Возможности
 
 - **Видео протоколы**:
-  - HTTP (MJPEG streaming)
+  - HTTP (MJPEG streaming) (реализовано)
   - RTSP (RTP/RTCP)
   - UDP (raw streaming)
   - WebRTC (через WebSocket signaling)
